@@ -87,31 +87,54 @@ MemoryBox is a mobile-first, culturally authentic digital sanctuary for Indian f
 ## Database-First Architecture (MANDATORY FOR ALL FEATURES)
 * **PRIMARY RULE:** ALL features MUST save to Supabase database as primary storage
 * **localStorage role:** ONLY as cache for performance, NEVER as primary storage
-* **If database save fails:** Show error to user, do NOT silently fall back to localStorage
+* **If database save fails:** Auto-retry 3 times, then show error with manual retry button
 * **Cross-device sync:** Database-first ensures data syncs across all user devices
 * **Data safety:** Database provides backup, recovery, and permanent storage
 
-### Database-First Implementation Pattern
+### Database-First Implementation Pattern (With Auto-Retry)
 ```typescript
-// ✅ CORRECT: Database-first with localStorage cache
+// ✅ CORRECT: Database-first with auto-retry
 const saveData = async (data) => {
   try {
-    // 1. Save to DATABASE FIRST
-    await DatabaseService.saveData(userId, data);
+    // 1. Save to DATABASE FIRST with automatic retries
+    await DatabaseService.saveData(userId, data, { 
+      retries: 3,  // Try 3 times with exponential backoff
+      showToast: true 
+    });
     
-    // 2. Update UI state
+    // 2. Update UI state (only after database success)
     setData(data);
     
-    // 3. Cache in localStorage (optional, for performance)
+    // 3. Cache in localStorage (only after database success)
     localStorage.setItem(`cache_${userId}`, JSON.stringify(data));
     
     toast.success('Saved successfully!');
   } catch (error) {
-    // ❌ NEVER save to localStorage if database fails
+    // ❌ NEVER save to localStorage if database fails after all retries
+    // User will see error toast with "Retry Now" button
     toast.error('Failed to save. Please check connection.');
     throw error;
   }
 };
+```
+
+### Auto-Retry Strategy (For Critical Data):
+- **Attempt 1:** Immediate
+- **Attempt 2:** Wait 2 seconds (exponential backoff)
+- **Attempt 3:** Wait 4 seconds (exponential backoff)
+- **If all fail:** Show error with manual "Retry Now" button
+- **Why:** 90% of database failures are temporary network hiccups that auto-resolve
+
+### NEVER Do This:
+```typescript
+// ❌ WRONG: Silent fallback to localStorage
+try {
+  await DatabaseService.save(data);
+} catch {
+  localStorage.setItem(...); // ❌ Gives false sense of security!
+  // User thinks data is saved but database is empty
+  // Data will be lost on browser clear or device switch
+}
 ```
 
 ### Current Status (✅ 100% PRODUCTION READY):

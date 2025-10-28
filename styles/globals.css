@@ -1,0 +1,1480 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 18px;
+  
+  /* New vibrant color palette */
+  --background: #FDFCDC;
+  --foreground: #22223B;
+  --card: #ffffff;
+  --card-foreground: #22223B;
+  --popover: #ffffff;
+  --popover-foreground: #22223B;
+  --primary: #6A0572;
+  --primary-foreground: #FDFCDC;
+  --secondary: #FF6F61;
+  --secondary-foreground: #FDFCDC;
+  --muted: #f8f7f0;
+  --muted-foreground: #666662;
+  --accent: #17BEBB;
+  --accent-foreground: #FDFCDC;
+  --destructive: #e74c3c;
+  --destructive-foreground: #FDFCDC;
+  --border: rgba(106, 5, 114, 0.2);
+  --input: transparent;
+  --input-background: #ffffff;
+  --switch-background: #e0dfdb;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: #6A0572;
+  
+  /* Additional vibrant accent colors */
+  --coral: #FF6F61;
+  --violet: #6A0572;
+  --aqua: #17BEBB;
+  --cream: #FDFCDC;
+  --ink: #22223B;
+  
+  --radius: 0.75rem;
+  --sidebar: #f8f7f0;
+  --sidebar-foreground: #22223B;
+  --sidebar-primary: #6A0572;
+  --sidebar-primary-foreground: #FDFCDC;
+  --sidebar-accent: #ffffff;
+  --sidebar-accent-foreground: #22223B;
+  --sidebar-border: rgba(106, 5, 114, 0.2);
+  --sidebar-ring: #6A0572;
+}
+
+.dark {
+  --background: #1a1a2e;
+  --foreground: #FDFCDC;
+  --card: #22223B;
+  --card-foreground: #FDFCDC;
+  --popover: #22223B;
+  --popover-foreground: #FDFCDC;
+  --primary: #FF6F61;
+  --primary-foreground: #22223B;
+  --secondary: #17BEBB;
+  --secondary-foreground: #22223B;
+  --muted: #2a2a3e;
+  --muted-foreground: #a8a8b8;
+  --accent: #6A0572;
+  --accent-foreground: #FDFCDC;
+  --destructive: #e74c3c;
+  --destructive-foreground: #FDFCDC;
+  --border: rgba(253, 252, 220, 0.2);
+  --input: #2a2a3e;
+  --ring: #FF6F61;
+  --sidebar: #1a1a2e;
+  --sidebar-foreground: #FDFCDC;
+  --sidebar-primary: #FF6F61;
+  --sidebar-primary-foreground: #22223B;
+  --sidebar-accent: #2a2a3e;
+  --sidebar-accent-foreground: #FDFCDC;
+  --sidebar-border: rgba(253, 252, 220, 0.2);
+  --sidebar-ring: #FF6F61;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-coral: var(--coral);
+  --color-violet: var(--violet);
+  --color-aqua: var(--aqua);
+  --color-cream: var(--cream);
+  --color-ink: var(--ink);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    font-size: var(--font-size);
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    background-image: 
+      radial-gradient(circle at 25% 25%, rgba(23, 190, 187, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 75% 75%, rgba(255, 111, 97, 0.05) 0%, transparent 50%);
+    background-attachment: fixed;
+  }
+}
+
+/* Custom scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--muted);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary);
+}
+
+/* Hide scrollbar for horizontal scroll */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Custom background texture */
+.vibrant-texture {
+  background-image: 
+    linear-gradient(45deg, rgba(106, 5, 114, 0.02) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255, 111, 97, 0.02) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(23, 190, 187, 0.02) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(106, 5, 114, 0.02) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+/* Enhanced Bottom Navigation Styles - Mobile Optimized */
+.bottom-nav-backdrop {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: rgba(253, 252, 220, 0.95);
+  border-top: 1px solid rgba(106, 5, 114, 0.08);
+  box-shadow: 
+    0 -8px 32px rgba(106, 5, 114, 0.1),
+    0 -2px 8px rgba(106, 5, 114, 0.05);
+}
+
+/* Mobile-first responsive bottom navigation */
+.bottom-nav-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+/* Enhanced bottom navigation active state animation */
+@keyframes navPulse {
+  0%, 100% { transform: scale(1) translateY(0px); }
+  50% { transform: scale(1.05) translateY(-1px); }
+}
+
+@keyframes navGlow {
+  0%, 100% { 
+    box-shadow: 0 0 0 rgba(106, 5, 114, 0);
+  }
+  50% { 
+    box-shadow: 0 0 15px rgba(106, 5, 114, 0.3);
+  }
+}
+
+.nav-item-active {
+  animation: navPulse 3s ease-in-out infinite;
+}
+
+.nav-item-active::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 12px;
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  animation: navGlow 2s ease-in-out infinite;
+  z-index: -1;
+}
+
+/* Enhanced floating navigation animation */
+@keyframes floatNavBar {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-2px); }
+}
+
+.fixed.bottom-0 .memory-card {
+  animation: floatNavBar 4s ease-in-out infinite;
+}
+
+/* Enhanced notification badge pulse */
+@keyframes badgePulse {
+  0%, 100% { 
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 111, 97, 0.7);
+  }
+  50% { 
+    opacity: 0.9;
+    transform: scale(1.1);
+    box-shadow: 0 0 0 3px rgba(255, 111, 97, 0);
+  }
+}
+
+.notification-badge {
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+/* 🚀 ENHANCED: Indian Family Tree Specific Styles */
+.family-tree-container {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Enhanced scrolling with Indian motifs */
+.family-tree-container::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+
+.family-tree-container::-webkit-scrollbar-track {
+  background: linear-gradient(45deg, rgba(255, 140, 0, 0.1), rgba(139, 69, 19, 0.1));
+  border-radius: 8px;
+  border: 1px solid rgba(255, 140, 0, 0.2);
+}
+
+.family-tree-container::-webkit-scrollbar-thumb {
+  background: linear-gradient(45deg, #FF8C00, #8B4513, #FF6347);
+  border-radius: 8px;
+  border: 2px solid rgba(253, 252, 220, 0.8);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.family-tree-container::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(45deg, #FF6347, #FF8C00, #8B4513);
+}
+
+.family-tree-container::-webkit-scrollbar-corner {
+  background: rgba(255, 140, 0, 0.1);
+}
+
+/* 🎨 ENHANCED: Connection Line Styles with Indian Aesthetics */
+
+/* ❤️ Spouse/Marriage Connection Styles - RED LINES */
+.tree-connection-spouse {
+  stroke: #DC2626;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 4px rgba(220, 38, 38, 0.3));
+  animation: spouseConnectionPulse 4s ease-in-out infinite;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tree-connection-spouse:hover {
+  stroke-width: 4;
+  filter: drop-shadow(0 3px 6px rgba(220, 38, 38, 0.4));
+  animation-duration: 2s;
+}
+
+@keyframes spouseConnectionPulse {
+  0%, 100% { 
+    opacity: 0.8;
+    stroke-width: 3;
+  }
+  50% { 
+    opacity: 1;
+    stroke-width: 4;
+  }
+}
+
+/* 💚 Parent-Child Biological Connection Styles - GREEN LINES */
+.tree-connection-parent-child {
+  stroke: #16A34A;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 3px rgba(22, 163, 74, 0.3));
+  animation: parentChildFlow 5s ease-in-out infinite;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tree-connection-parent-child:hover {
+  stroke-width: 3;
+  filter: drop-shadow(0 2px 4px rgba(22, 163, 74, 0.4));
+  animation-duration: 3s;
+}
+
+@keyframes parentChildFlow {
+  0% { 
+    stroke-dashoffset: 0;
+    opacity: 0.7;
+  }
+  25% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 0.9;
+  }
+  100% { 
+    stroke-dashoffset: 0;
+    opacity: 0.7;
+  }
+}
+
+/* 🖤 Parent-Child Adopted Connection Styles - BLACK LINES */
+.tree-connection-adopted {
+  stroke: #1F2937;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 6 3;
+  filter: drop-shadow(0 1px 3px rgba(31, 41, 55, 0.3));
+  animation: adoptedConnectionFlow 5s ease-in-out infinite;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tree-connection-adopted:hover {
+  stroke-width: 3;
+  filter: drop-shadow(0 2px 4px rgba(31, 41, 55, 0.4));
+  animation-duration: 3s;
+}
+
+@keyframes adoptedConnectionFlow {
+  0% { 
+    stroke-dashoffset: 18;
+    opacity: 0.7;
+  }
+  25% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+  75% {
+    opacity: 0.9;
+  }
+  100% { 
+    stroke-dashoffset: -18;
+    opacity: 0.7;
+  }
+}
+
+/* 🌳 Parent-Child Connection Styles */
+.tree-connection-parent-child {
+  stroke: #374151;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 3px rgba(55, 65, 81, 0.3));
+  animation: parentChildFlow 5s ease-in-out infinite;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tree-connection-parent-child:hover {
+  stroke-width: 3;
+  filter: drop-shadow(0 2px 4px rgba(55, 65, 81, 0.4));
+  animation-duration: 3s;
+}
+
+@keyframes parentChildFlow {
+  0% { 
+    stroke-dashoffset: 0;
+    opacity: 0.7;
+  }
+  25% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 0.9;
+  }
+  100% { 
+    stroke-dashoffset: 0;
+    opacity: 0.7;
+  }
+}
+
+/* 🔒 STRICT ALIGNMENT: Couple Block Lock Indicators */
+.couple-block-lock {
+  position: absolute;
+  z-index: 15;
+  pointer-events: none;
+  animation: coupleLockPulse 3s ease-in-out infinite;
+}
+
+@keyframes coupleLockPulse {
+  0%, 100% { 
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+/* 📐 STRICT ALIGNMENT: Sibling Row Lock Indicators */
+.sibling-row-lock {
+  position: absolute;
+  left: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #6A0572, #FF6F61);
+  border-radius: 2px;
+  z-index: 10;
+  pointer-events: none;
+  animation: siblingRowPulse 4s ease-in-out infinite;
+}
+
+@keyframes siblingRowPulse {
+  0%, 100% { 
+    opacity: 0.5;
+    box-shadow: 0 0 0 rgba(106, 5, 114, 0);
+  }
+  50% { 
+    opacity: 0.9;
+    box-shadow: 0 0 8px rgba(106, 5, 114, 0.4);
+  }
+}
+
+/* 🔀 SMART CONNECTOR: Avoidance Route Styles */
+.tree-connection-avoidance {
+  stroke: #17BEBB;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 5 3;
+  filter: drop-shadow(0 2px 6px rgba(23, 190, 187, 0.4));
+  animation: avoidanceRoute 6s ease-in-out infinite;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tree-connection-avoidance:hover {
+  stroke-width: 4;
+  filter: drop-shadow(0 3px 8px rgba(23, 190, 187, 0.6));
+  animation-duration: 4s;
+}
+
+@keyframes avoidanceRoute {
+  0% { 
+    stroke-dashoffset: 16;
+    opacity: 0.8;
+  }
+  25% {
+    opacity: 0.9;
+  }
+  50% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  75% {
+    opacity: 0.9;
+  }
+  100% { 
+    stroke-dashoffset: -16;
+    opacity: 0.8;
+  }
+}
+
+/* 🎯 STRICT ALIGNMENT: Highlighted Alignment Rules */
+.alignment-rule-active {
+  background: linear-gradient(135deg, rgba(106, 5, 114, 0.1), rgba(255, 111, 97, 0.1));
+  border: 2px solid rgba(106, 5, 114, 0.3);
+  box-shadow: 0 4px 12px rgba(106, 5, 114, 0.2);
+  animation: alignmentRuleGlow 3s ease-in-out infinite;
+}
+
+@keyframes alignmentRuleGlow {
+  0%, 100% { 
+    box-shadow: 0 4px 12px rgba(106, 5, 114, 0.2);
+  }
+  50% { 
+    box-shadow: 0 8px 20px rgba(106, 5, 114, 0.4);
+  }
+}
+
+/* 🍃 Extended Family Connection Styles */
+.tree-connection-extended {
+  stroke: #10B981;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 8 4;
+  filter: drop-shadow(0 1px 2px rgba(16, 185, 129, 0.3));
+  animation: extendedFamilyFlow 6s ease-in-out infinite;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tree-connection-extended:hover {
+  stroke-width: 2.5;
+  filter: drop-shadow(0 2px 3px rgba(16, 185, 129, 0.4));
+  animation-duration: 4s;
+}
+
+@keyframes extendedFamilyFlow {
+  0% { 
+    stroke-dashoffset: 32;
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.9;
+  }
+  100% { 
+    stroke-dashoffset: 0;
+    opacity: 0.6;
+  }
+}
+
+/* 🧡 Adoption/Step-Relationship Styles */
+.tree-connection-adoption {
+  stroke: #FB923C;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 6 6;
+  filter: drop-shadow(0 1px 2px rgba(251, 146, 60, 0.3));
+  animation: adoptionConnectionPulse 4s ease-in-out infinite;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tree-connection-adoption:hover {
+  stroke-width: 2.5;
+  filter: drop-shadow(0 2px 3px rgba(251, 146, 60, 0.4));
+  animation-duration: 2.5s;
+}
+
+@keyframes adoptionConnectionPulse {
+  0%, 100% { 
+    opacity: 0.6;
+    stroke-dashoffset: 0;
+  }
+  50% { 
+    opacity: 0.9;
+    stroke-dashoffset: 12;
+  }
+}
+
+/* 🌟 Enhanced Family Member Card Styles */
+.family-member-card {
+  transition: all 0.2s ease-in-out;
+  user-select: none;
+  pointer-events: auto;
+}
+
+.family-member-card:hover {
+  transform: scale(1.02);
+  z-index: 20 !important;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.family-member-selected {
+  transform: scale(1.02);
+  z-index: 20 !important;
+  box-shadow: 0 8px 25px rgba(106, 5, 114, 0.3);
+}
+
+/* Tree Canvas */
+.tree-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+.tree-canvas:active {
+  cursor: grabbing;
+}
+
+/* 🎭 Indian Cultural Motifs */
+.family-tree-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, 
+    #FF8C00 0%, 
+    #FFFFFF 25%, 
+    #138808 50%, 
+    #FFFFFF 75%, 
+    #FF8C00 100%);
+  z-index: 1;
+}
+
+.family-tree-container::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, 
+    #FF8C00 0%, 
+    #FFFFFF 25%, 
+    #138808 50%, 
+    #FFFFFF 75%, 
+    #FF8C00 100%);
+  z-index: 1;
+}
+
+/* 🕉️ Sacred geometry patterns (subtle) */
+.family-tree-container .generation-badge::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -10px;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  background: radial-gradient(circle, #FF8C00, #8B4513);
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(255, 140, 0, 0.3);
+}
+
+/* Returning User Home Page Animations */
+@keyframes memoryFloat {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  25% { transform: translateY(-2px) rotate(0.5deg); }
+  75% { transform: translateY(2px) rotate(-0.5deg); }
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.1); }
+}
+
+@keyframes gentleGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(106, 5, 114, 0.1); }
+  50% { box-shadow: 0 0 30px rgba(106, 5, 114, 0.2); }
+}
+
+@keyframes progressPulse {
+  0%, 100% { transform: scaleX(1); }
+  50% { transform: scaleX(1.02); }
+}
+
+@keyframes slideInStagger {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Memory card hover effects */
+.memory-card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.memory-card-hover:hover {
+  transform: translateY(-4px) scale(1.02);
+  animation: gentleGlow 2s ease-in-out infinite;
+}
+
+/* Hero carousel animations */
+.hero-memory {
+  animation: memoryFloat 6s ease-in-out infinite;
+}
+
+/* Activity feed animations */
+.activity-item {
+  animation: slideInStagger 0.6s ease-out;
+  animation-delay: calc(var(--index) * 0.1s);
+  animation-fill-mode: both;
+}
+
+/* Progress bar enhancement */
+.progress-enhanced {
+  animation: progressPulse 3s ease-in-out infinite;
+}
+
+/* Icon sparkle effects */
+.icon-sparkle {
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+/* Staggered fade-in for sections */
+@keyframes staggerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-1 { animation: staggerFadeIn 0.6s ease-out 0.1s both; }
+.stagger-2 { animation: staggerFadeIn 0.6s ease-out 0.2s both; }
+.stagger-3 { animation: staggerFadeIn 0.6s ease-out 0.3s both; }
+.stagger-4 { animation: staggerFadeIn 0.6s ease-out 0.4s both; }
+.stagger-5 { animation: staggerFadeIn 0.6s ease-out 0.5s both; }
+.stagger-6 { animation: staggerFadeIn 0.6s ease-out 0.6s both; }
+
+/* Rotating background gradient */
+@keyframes rotateGradient {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.rotating-gradient {
+  position: relative;
+  overflow: hidden;
+}
+
+.rotating-gradient::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(106, 5, 114, 0.1),
+    rgba(255, 111, 97, 0.1),
+    rgba(23, 190, 187, 0.1),
+    rgba(106, 5, 114, 0.1)
+  );
+  animation: rotateGradient 20s linear infinite;
+  z-index: -1;
+}
+
+/* Memory streak animation */
+@keyframes streakFlame {
+  0%, 100% { 
+    transform: scale(1) rotate(-1deg);
+    filter: hue-rotate(0deg);
+  }
+  25% { 
+    transform: scale(1.05) rotate(1deg);
+    filter: hue-rotate(10deg);
+  }
+  75% { 
+    transform: scale(0.95) rotate(-0.5deg);
+    filter: hue-rotate(-10deg);
+  }
+}
+
+.streak-flame {
+  animation: streakFlame 2s ease-in-out infinite;
+}
+
+/**
+ * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
+ */
+@layer base {
+  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
+    h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.25rem;
+      font-weight: 600;
+      line-height: 1.4;
+      color: var(--foreground);
+    }
+
+    h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      font-weight: 500;
+      line-height: 1.5;
+      color: var(--foreground);
+    }
+
+    h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.75rem;
+      font-weight: 500;
+      line-height: 1.5;
+      color: var(--foreground);
+    }
+
+    h4 {
+      font-family: 'Inter', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 500;
+      line-height: 1.6;
+      color: var(--foreground);
+    }
+
+    p {
+      font-family: 'Inter', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 400;
+      line-height: 1.7;
+      color: var(--foreground);
+    }
+
+    label {
+      font-family: 'Inter', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 500;
+      line-height: 1.6;
+      color: var(--foreground);
+    }
+
+    button {
+      font-family: 'Inter', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 500;
+      line-height: 1.6;
+    }
+
+    input {
+      font-family: 'Inter', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 400;
+      line-height: 1.6;
+    }
+  }
+}
+
+/* Custom classes for memory vault aesthetics */
+.memory-card {
+  background: linear-gradient(135deg, #ffffff 0%, #FDFCDC 100%);
+  box-shadow: 
+    0 4px 6px -1px rgba(106, 5, 114, 0.1),
+    0 2px 4px -1px rgba(106, 5, 114, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(106, 5, 114, 0.1);
+  transition: all 0.2s ease-in-out;
+}
+
+.memory-card:hover {
+  box-shadow: 
+    0 8px 25px -5px rgba(106, 5, 114, 0.15),
+    0 4px 6px -2px rgba(106, 5, 114, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.vibrant-button {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  box-shadow: 
+    0 4px 6px -1px rgba(106, 5, 114, 0.25),
+    0 2px 4px -1px rgba(106, 5, 114, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease-in-out;
+}
+
+.vibrant-button:hover {
+  background: linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%);
+  box-shadow: 
+    0 6px 12px -2px rgba(106, 5, 114, 0.3),
+    0 4px 6px -1px rgba(106, 5, 114, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.aqua-button {
+  background: linear-gradient(135deg, var(--accent) 0%, #20c997 100%);
+  box-shadow: 
+    0 4px 6px -1px rgba(23, 190, 187, 0.25),
+    0 2px 4px -1px rgba(23, 190, 187, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease-in-out;
+}
+
+.aqua-button:hover {
+  background: linear-gradient(135deg, #20c997 0%, var(--accent) 100%);
+  box-shadow: 
+    0 6px 12px -2px rgba(23, 190, 187, 0.3),
+    0 4px 6px -1px rgba(23, 190, 187, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Section dividers */
+.section-divider {
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--primary) 50%, transparent 100%);
+  margin: 2rem 0;
+  opacity: 0.3;
+}
+
+/* Fade in animation for sections */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-section {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+/* Page transition animations */
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.page-transition-enter {
+  animation: slideInFromRight 0.3s ease-out;
+}
+
+.page-transition-enter-reverse {
+  animation: slideInFromLeft 0.3s ease-out;
+}
+
+/* Landing page specific animations */
+@keyframes heroFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.hero-float {
+  animation: heroFloat 4s ease-in-out infinite;
+}
+
+/* Mobile-specific responsive design enhancements */
+@media (max-width: 480px) {
+  :root {
+    --font-size: 16px;
+  }
+  
+  .fixed.bottom-24.right-4 {
+    bottom: 6rem;
+    right: 0.75rem;
+  }
+  
+  .fixed.top-14.right-4 {
+    top: 3.5rem;
+    right: 0.75rem;
+  }
+  
+  .fixed.top-12.left-4 {
+    top: 3rem;
+    left: 0.75rem;
+  }
+  
+  /* Bottom navigation mobile optimization */
+  .bottom-nav-backdrop .memory-card {
+    max-width: calc(100vw - 1rem);
+    margin: 0 0.5rem;
+  }
+  
+  /* Ensure navigation items fit on smallest screens */
+  .bottom-nav-backdrop button {
+    min-w: 48px !important;
+    max-w: 56px !important;
+    min-h: 52px !important;
+    padding: 6px !important;
+  }
+  
+  /* Mobile typography adjustments */
+  .bottom-nav-backdrop button span {
+    font-size: 10px !important;
+    line-height: 1 !important;
+  }
+  
+  .bottom-nav-backdrop .lucide {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  /* Mobile family tree adjustments */
+  .generation-badge {
+    font-size: 11px !important;
+    padding: 8px 12px !important;
+  }
+  
+  .family-member-card {
+    min-width: 130px !important;
+  }
+  
+  /* Touch-friendly family tree nodes */
+  .family-tree-node {
+    min-width: 120px !important;
+    min-height: 100px !important;
+  }
+  
+  /* Connection lines for mobile - ENHANCED VISIBILITY */
+  .tree-connection-spouse {
+    stroke-width: 5px !important; /* Thick red spouse lines */
+  }
+  
+  .tree-connection-parent-child {
+    stroke-width: 4px !important; /* Visible green parent-child lines */
+  }
+  
+  .tree-connection-adopted {
+    stroke-width: 4px !important; /* Visible black adopted lines */
+  }
+  
+  .tree-connection-extended {
+    stroke-width: 3px !important; /* Visible extended family lines */
+  }
+}
+
+/* Small mobile screens (iPhone SE, etc.) */
+@media (max-width: 375px) {
+  .bottom-nav-backdrop button {
+    min-w: 44px !important;
+    max-w: 52px !important;
+    min-h: 48px !important;
+    padding: 4px !important;
+  }
+  
+  .bottom-nav-backdrop button span {
+    font-size: 9px !important;
+  }
+  
+  .bottom-nav-backdrop .lucide {
+    width: 16px !important;
+    height: 16px !important;
+  }
+  
+  .notification-badge {
+    width: 14px !important;
+    height: 14px !important;
+    font-size: 8px !important;
+  }
+
+  .generation-badge {
+    font-size: 10px !important;
+    padding: 6px 10px !important;
+  }
+}
+
+/* Large mobile screens */
+@media (min-width: 481px) and (max-width: 768px) {
+  .fixed.bottom-24.right-4 {
+    bottom: 7rem;
+    right: 1rem;
+  }
+  
+  .fixed.top-14.right-4 {
+    top: 4rem;
+    right: 1rem;
+  }
+  
+  .fixed.top-12.left-4 {
+    top: 3.5rem;
+    left: 1rem;
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Feature strip card animations */
+@keyframes featureCardFloat {
+  0%, 100% { 
+    transform: translateY(0px) scale(1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  }
+  50% { 
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  }
+}
+
+@keyframes featureIconPulse {
+  0%, 100% { 
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% { 
+    transform: scale(1.1);
+    filter: brightness(1.1);
+  }
+}
+
+/* Feature card hover enhancements */
+.feature-card-enhanced {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.feature-card-enhanced:hover {
+  animation: featureCardFloat 2s ease-in-out infinite;
+}
+
+.feature-card-enhanced:hover .feature-icon {
+  animation: featureIconPulse 1.5s ease-in-out infinite;
+}
+
+.feature-card-enhanced::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.3), 
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.feature-card-enhanced:hover::before {
+  left: 100%;
+}
+
+/* Warm gradient backgrounds for feature cards */
+.feature-voices-bg {
+  background: linear-gradient(135deg, #FEF3C7 0%, #FED7AA 50%, #FDBA74 100%);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.feature-tree-bg {
+  background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 50%, #A7F3D0 100%);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.feature-capsule-bg {
+  background: linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 50%, #E9D5FF 100%);
+  border: 1px solid rgba(147, 51, 234, 0.2);
+}
+
+/* Icon gradient backgrounds */
+.feature-icon-voices {
+  background: linear-gradient(135deg, #F59E0B 0%, #EA580C 100%);
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+}
+
+.feature-icon-tree {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+}
+
+.feature-icon-capsule {
+  background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+}
+
+/* Feature text highlights */
+.feature-highlight-voices {
+  color: #92400E;
+  font-weight: 600;
+}
+
+.feature-highlight-tree {
+  color: #065F46;
+  font-weight: 600;
+}
+
+.feature-highlight-capsule {
+  color: #581C87;
+  font-weight: 600;
+}
+
+/* Example boxes */
+.feature-example-voices {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  color: #92400E;
+}
+
+.feature-example-tree {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: #065F46;
+}
+
+.feature-example-capsule {
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  color: #581C87;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .memory-card {
+    border: 2px solid var(--primary);
+  }
+  
+  .vibrant-button {
+    border: 2px solid var(--primary-foreground);
+  }
+}
+
+/* Elder-friendly enhancements for 30-70 age group */
+.elder-friendly-text {
+  font-size: 1.25rem;
+  line-height: 1.7;
+  letter-spacing: 0.01em;
+}
+
+/* Enhanced readability for card content */
+.memory-card h3 {
+  font-size: 1.375rem !important;
+  font-weight: 600 !important;
+  line-height: 1.5 !important;
+}
+
+.memory-card p {
+  font-size: 1.125rem !important;
+  line-height: 1.7 !important;
+}
+
+.memory-card .text-sm {
+  font-size: 1rem !important;
+}
+
+.memory-card .text-xs {
+  font-size: 0.875rem !important;
+}
+
+/* Larger button text */
+button span {
+  font-size: inherit !important;
+}
+
+/* Enhanced badge readability */
+.badge {
+  font-size: 0.875rem !important;
+  padding: 0.375rem 0.75rem !important;
+  font-weight: 500 !important;
+}
+
+/* Better contrast for muted text */
+.text-muted-foreground {
+  color: #4a4a5a !important;
+}
+
+/* Enhanced input readability */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea {
+  font-size: 1.25rem !important;
+  line-height: 1.6 !important;
+  padding: 0.75rem 1rem !important;
+}
+
+/* Better spacing for elder users */
+.space-y-2 > * + * {
+  margin-top: 0.75rem !important;
+}
+
+.space-y-3 > * + * {
+  margin-top: 1rem !important;
+}
+
+.space-y-4 > * + * {
+  margin-top: 1.25rem !important;
+}
+
+/* Larger clickable areas */
+a, button, [role="button"] {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Enhanced focus styles for better visibility */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 3px solid var(--primary) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 3px rgba(106, 5, 114, 0.2) !important;
+}
+
+/* Focus styles for accessibility */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Safe area insets for mobile devices */
+@supports (padding: max(0px)) {
+  .bottom-nav-safe {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+  
+  .top-nav-safe {
+    padding-top: max(0px, env(safe-area-inset-top));
+  }
+}
+
+/* Top Navigation Bar Styles */
+.top-nav-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: rgba(253, 252, 220, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(106, 5, 114, 0.1);
+  box-shadow: 0 2px 8px rgba(106, 5, 114, 0.05);
+}
+
+/* Page content padding for top navigation */
+.pt-16 {
+  padding-top: 4rem; /* 64px - matches top nav height */
+}
+
+/* Ensure content doesn't overlap with fixed top bar */
+body:has(.top-nav-bar) {
+  padding-top: 0;
+}
+
+/* Top navigation bar hover effects */
+.top-nav-bar button:hover {
+  background: rgba(106, 5, 114, 0.05);
+}
+
+.top-nav-bar button:active {
+  transform: scale(0.98);
+}
+
+/* Enhanced elder-friendly focus indicators */
+button:focus-visible,
+[role="button"]:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+/* Large touch targets for mobile accessibility */
+@media (max-width: 768px) {
+  button:not(.bottom-nav-backdrop button),
+  [role="button"]:not(.bottom-nav-backdrop [role="button"]),
+  a:not(.bottom-nav-backdrop a) {
+    min-height: 48px;
+    min-width: 48px;
+    padding: 14px;
+  }
+}
+
+/* Ensure text is always readable on mobile */
+@media (max-width: 480px) {
+  h1 {
+    font-size: 2rem !important;
+  }
+  
+  h2 {
+    font-size: 1.75rem !important;
+  }
+  
+  h3 {
+    font-size: 1.5rem !important;
+  }
+  
+  h4 {
+    font-size: 1.25rem !important;
+  }
+  
+  p {
+    font-size: 1.125rem !important;
+  }
+  
+  button {
+    font-size: 1.125rem !important;
+  }
+  
+  input {
+    font-size: 1.125rem !important;
+  }
+  
+  label {
+    font-size: 1.125rem !important;
+  }
+  
+  /* Ensure demo badges don't interfere on small screens */
+  .fixed.top-2.left-1\/2 {
+    top: 0.25rem;
+    font-size: 10px;
+  }
+  
+  /* Family Wall mobile optimization */
+  .sticky.top-16 {
+    top: 4rem !important; /* Ensure sticky elements don't overlap TopNav */
+  }
+  
+  /* Compact Quick Actions on mobile */
+  .sticky.top-16.z-40 + .sticky {
+    top: calc(4rem + 60px) !important; /* Stack below Quick Actions */
+  }
+}
+
+/* Family Wall specific responsive adjustments - REMOVED STICKY POSITIONING */
+/* Filter bar is no longer sticky to prevent floating issues */

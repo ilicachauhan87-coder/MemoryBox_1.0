@@ -14,6 +14,7 @@ import { uploadProfilePhoto, storePhotoLocally, refreshPhotoUrlIfNeeded } from '
 import { profileSyncService, type SpouseInfo, type MarriageData } from '../utils/profileSyncService';
 import { formatDateForDisplay, formatDateForStorage, isValidDDMMYYYY, formatDateInput, getDateErrorMessage } from '../utils/dateHelpers';
 import { useRelationship } from '../utils/useRelationship';
+import { relationshipEngine } from '../utils/relationshipDerivationEngine';
 
 interface InteractivePerson {
   id: string;
@@ -175,7 +176,6 @@ export const FamilyMemberProfile: React.FC<FamilyMemberProfileProps> = ({
     console.log('   Person Is Root:', person.isRoot);
     
     // Check if engine is initialized
-    const { relationshipEngine } = require('../utils/relationshipDerivationEngine');
     const isEngineReady = relationshipEngine.graph !== null;
     console.log('   🔧 Engine Status:', isEngineReady ? '✅ Initialized' : '❌ Not Initialized');
     

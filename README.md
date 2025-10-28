@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
   # MemoryBox (MVP 1.0)
 
@@ -9,3 +10,7 @@
 
   Run `npm run dev` to start the development server.
   
+=======
+# MemoryBox_1.0
+Version 27th Oct 2025
+>>>>>>> db4cbd164bf1c9ff3dcf1b818db21329d30781f6

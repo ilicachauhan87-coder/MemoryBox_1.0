@@ -14,6 +14,7 @@ import { normalizeGender } from './utils/genderHelpers';
 import { errorMonitoring } from './utils/errorMonitoring';
 import { analytics } from './utils/analytics';
 import { FeedbackWidget } from './components/FeedbackWidget';
+import { metricsService } from './utils/metricsService';
 
 // 🚀 Lazy load all route components for better performance
 const SignInPage = lazy(() => import('./components/SignInPage').then(m => ({ default: m.SignInPage })));
@@ -350,6 +351,19 @@ const SignInWrapper = ({ mode }: { mode: 'signup' | 'signin' }) => {
     // Cache to localStorage (database is source of truth, this is cache)
     localStorage.setItem(`user:${userData.id}:profile`, JSON.stringify(normalizedData));
     console.log('💾 Cached database profile to localStorage');
+    
+    // 🆕 CRITICAL: Initialize user activity tracking for admin dashboard
+    try {
+      await metricsService.initializeUserActivity(
+        userData.id,
+        userData.email || '',
+        1 // batch_no - default to 1 for all users
+      );
+      console.log('✅ User activity tracking initialized for admin dashboard');
+    } catch (error) {
+      console.error('⚠️ Failed to initialize user activity tracking (non-critical):', error);
+      // Don't block user - this is for metrics only
+    }
     
     // Notify ProfilePage that user data has been updated
     console.log('📢 Dispatching userProfileUpdated event to notify ProfilePage...');

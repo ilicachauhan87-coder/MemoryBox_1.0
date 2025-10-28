@@ -740,7 +740,7 @@ class PersistentDatabase {
     }
   }
 
-  async saveFamilyTree(familyId: string, tree: any): Promise<void> {
+  async saveFamilyTree(familyId: string, tree: any, options = { retries: 3, showToast: true }): Promise<void> {
     // ✅ CRITICAL FIX: Skip database for invalid UUIDs (including demo families)
     if (!this.isValidUUID(familyId)) {
       console.log('📦 Invalid/demo family ID - saving to localStorage only');
@@ -748,70 +748,120 @@ class PersistentDatabase {
       return;
     }
     
-    try {
-      // Normalize tree format (handle both array and object formats)
-      let treeData = tree;
-      if (Array.isArray(tree)) {
-        // Convert old array format to new object format
-        treeData = {
-          people: tree,
-          relationships: [],
-          rootUserId: '',
-          generationLimits: {}
-        };
-      }
-      
-      // Extract people count for logging
-      const peopleArray = Array.isArray(treeData) ? treeData : (treeData?.people || []);
-      
-      console.log('💾 Saving family tree to database...', {
-        familyId,
-        peopleCount: peopleArray.length,
-        isArray: Array.isArray(treeData),
-        hasRelationships: !Array.isArray(treeData) && Array.isArray(treeData?.relationships)
-      });
-      
-      // Upsert family tree (stores entire tree as JSONB in tree_data column)
-      const { data, error } = await this.supabase
-        .from('family_trees')
-        .upsert({
-          family_id: familyId,
-          tree_data: treeData,
-          updated_at: new Date().toISOString()
-        }, { 
-          onConflict: 'family_id' 
-        })
-        .select();
-      
-      if (error) {
-        console.error('❌ Database save error:', {
-          message: error.message,
-          code: error.code,
-          details: error.details,
-          hint: error.hint
+    let lastError: any;
+    
+    // 🔧 RETRY LOGIC: Try up to 3 times with exponential backoff
+    for (let attempt = 1; attempt <= options.retries; attempt++) {
+      try {
+        console.log(`💾 Attempt ${attempt}/${options.retries}: Saving tree to database...`);
+        
+        // Normalize tree format (handle both array and object formats)
+        let treeData = tree;
+        if (Array.isArray(tree)) {
+          // Convert old array format to new object format
+          treeData = {
+            people: tree,
+            relationships: [],
+            rootUserId: '',
+            generationLimits: {}
+          };
+        }
+        
+        // Extract people count for logging
+        const peopleArray = Array.isArray(treeData) ? treeData : (treeData?.people || []);
+        
+        // Upsert family tree (stores entire tree as JSONB in tree_data column)
+        const { data, error } = await this.supabase
+          .from('family_trees')
+          .upsert({
+            family_id: familyId,
+            tree_data: treeData,
+            updated_at: new Date().toISOString()
+          }, { 
+            onConflict: 'family_id' 
+          })
+          .select();
+        
+        if (error) throw error;
+        
+        // ✅ SUCCESS!
+        console.log(`✅ Attempt ${attempt}: Tree saved to database successfully!`, {
+          familyId,
+          peopleCount: peopleArray.length,
+          rowsAffected: data?.length || 0
         });
-        throw error;
+        
+        // Cache in localStorage
+        this.saveToLocalStorage(`familyTree_${familyId}`, tree);
+        
+        // Show success toast
+        if (options.showToast) {
+          import('sonner@2.0.3').then(({ toast }) => {
+            if (attempt > 1) {
+              // Show retry success
+              toast.success(`✅ Synced to cloud after ${attempt} attempts!`);
+            } else {
+              // First attempt success - show confirmation once per session
+              if (!sessionStorage.getItem('tree_sync_confirmed_session')) {
+                toast.success('✅ Family tree synced to cloud!', { duration: 2000 });
+                sessionStorage.setItem('tree_sync_confirmed_session', 'true');
+              }
+            }
+          });
+        }
+        
+        return; // Success - exit function
+        
+      } catch (error) {
+        lastError = error;
+        console.error(`❌ Attempt ${attempt} failed:`, error);
+        
+        // If not the last attempt, wait before retry (exponential backoff: 2s, 4s, 8s)
+        if (attempt < options.retries) {
+          const delay = Math.pow(2, attempt) * 1000;
+          console.log(`⏳ Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
-      
-      console.log('✅ Family tree saved to database:', {
-        familyId,
-        peopleCount: peopleArray.length,
-        rowsAffected: data?.length || 0,
-        savedSuccessfully: !!data && data.length > 0
-      });
-      
-      // Update localStorage cache
-      this.saveToLocalStorage(`familyTree_${familyId}`, tree);
-      
-    } catch (error) {
-      console.error('❌ Database save FAILED:', {
-        familyId,
-        error: error instanceof Error ? error.message : String(error)
-      });
-      // Fallback to localStorage
-      this.saveToLocalStorage(`familyTree_${familyId}`, tree);
-      console.log('💾 Family tree saved to localStorage only (database failed)');
     }
+    
+    // ❌ ALL RETRIES FAILED - This is a real error!
+    console.error(`❌ All ${options.retries} attempts failed to save family tree!`);
+    
+    // Show error to user with retry option
+    if (options.showToast) {
+      import('sonner@2.0.3').then(({ toast }) => {
+        toast.error('❌ Cannot sync to cloud', {
+          duration: 10000,
+          description: 'Please check your internet connection and try again.',
+          action: {
+            label: 'Retry Now',
+            onClick: () => {
+              // Manually retry
+              this.saveFamilyTree(familyId, tree, { retries: 3, showToast: true });
+            }
+          }
+        });
+      });
+    }
+    
+    // Track error for debugging
+    import('../errorMonitoring').then(({ errorMonitoring }) => {
+      errorMonitoring.logError('FamilyTreeSaveFailedAfterRetries', lastError, {
+        familyId,
+        peopleCount: tree.people?.length || 0,
+        retriesAttempted: options.retries
+      });
+    }).catch(() => {
+      console.warn('⚠️ Could not log error to monitoring service');
+    });
+    
+    // ❌ DATABASE-FIRST: DO NOT save to localStorage if database fails!
+    // This ensures user knows data is not persisted and can retry
+    // Don't give false sense of security
+    
+    // Throw error to let caller know save failed
+    throw new Error(`Failed to save family tree after ${options.retries} attempts: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
   }
 
   // ==================== MEMORIES ====================

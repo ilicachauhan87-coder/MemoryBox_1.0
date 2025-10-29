@@ -56,6 +56,7 @@ import { toast } from 'sonner@2.0.3';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import { DatabaseService } from '../utils/supabase/persistent-database';
 import { MemoryMediaViewer } from './MemoryMediaViewer';
+import { formatDateForDisplay } from '../utils/dateHelpers';
 
 interface VaultPageProps {
   user: UserProfile | null;
@@ -1497,6 +1498,37 @@ export const VaultPage: React.FC<VaultPageProps> = ({ user, family, onNavigate }
                           )}
                         </div>
                       )}
+                      
+                      {/* 🆕 Memory Date */}
+                      {(memory.date || memory.memory_date || memory.date_of_memory) && (
+                        <div className="flex items-center space-x-1 min-w-0">
+                          <Calendar className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                          <span className="text-xs text-muted-foreground truncate">
+                            {formatDateForDisplay(memory.date || memory.memory_date || memory.date_of_memory)}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* 🆕 General Tags */}
+                      {memory.tags && memory.tags.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 min-w-0 pt-1">
+                          {memory.tags.slice(0, 3).map((tag: string, idx: number) => (
+                            <Badge 
+                              key={idx} 
+                              variant="outline"
+                              className="text-xs px-2 py-0.5 bg-aqua/10 text-aqua border-aqua/30 flex items-center gap-1"
+                            >
+                              <TagIcon className="w-3 h-3" />
+                              <span>{tag}</span>
+                            </Badge>
+                          ))}
+                          {memory.tags.length > 3 && (
+                            <Badge variant="outline" className="text-xs px-2 py-0.5 bg-muted text-muted-foreground border-0">
+                              +{memory.tags.length - 3}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -1724,6 +1756,43 @@ export const VaultPage: React.FC<VaultPageProps> = ({ user, family, onNavigate }
                         );
                       }
                     })}
+                  </div>
+                </div>
+              )}
+
+              {/* 🆕 Memory Date Section */}
+              {(selectedMemory.date || selectedMemory.memory_date || selectedMemory.date_of_memory) && (
+                <div className="space-y-2 w-full">
+                  <h4 className="font-medium text-foreground flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-primary" />
+                    Date of Memory
+                  </h4>
+                  <div className="flex items-center space-x-2 text-muted-foreground w-full">
+                    <span className="break-words flex-1 text-base">
+                      {formatDateForDisplay(selectedMemory.date || selectedMemory.memory_date || selectedMemory.date_of_memory)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* 🆕 Tags Section */}
+              {selectedMemory.tags && selectedMemory.tags.length > 0 && (
+                <div className="space-y-3 w-full">
+                  <h4 className="font-medium text-foreground flex items-center gap-2">
+                    <TagIcon className="w-4 h-4 text-primary" />
+                    Tags
+                  </h4>
+                  <div className="flex flex-wrap gap-2 w-full">
+                    {selectedMemory.tags.map((tag: string, index: number) => (
+                      <Badge 
+                        key={index} 
+                        variant="outline"
+                        className="px-3 py-1.5 bg-aqua/10 text-aqua border-aqua/30 flex items-center gap-2 text-sm hover:bg-aqua/20 transition-colors"
+                      >
+                        <TagIcon className="w-4 h-4" />
+                        <span>{tag}</span>
+                      </Badge>
+                    ))}
                   </div>
                 </div>
               )}

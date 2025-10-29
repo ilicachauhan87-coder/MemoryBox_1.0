@@ -260,6 +260,100 @@ app.post("/make-server-48a3bd07/auth/signup", async (c) => {
   }
 });
 
+// Password reset verification endpoint (Safari compatible)
+app.post("/make-server-48a3bd07/auth/verify-reset-token", async (c) => {
+  try {
+    const { token_hash, type } = await c.req.json();
+    
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🔐 PASSWORD RESET TOKEN VERIFICATION STARTED');
+    console.log('   Token hash:', token_hash ? `${token_hash.substring(0, 20)}...` : 'MISSING');
+    console.log('   Type:', type || 'recovery');
+    console.log('   Timestamp:', new Date().toISOString());
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    
+    if (!token_hash) {
+      console.error('❌ Missing token_hash in request');
+      return c.json({ 
+        error: 'Missing token hash',
+        success: false
+      }, 400);
+    }
+    
+    // Verify the token with Supabase Auth
+    // This exchanges the token_hash for a valid session
+    console.log('🔍 Verifying token with Supabase Auth...');
+    
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash,
+      type: type || 'recovery'
+    });
+    
+    if (error) {
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.error('❌ TOKEN VERIFICATION FAILED:');
+      console.error('   Message:', error.message);
+      console.error('   Status:', error.status);
+      console.error('   Code:', (error as any).code);
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      
+      return c.json({ 
+        error: error.message || 'Invalid or expired token',
+        success: false,
+        errorCode: error.status || 400
+      }, error.status || 400);
+    }
+    
+    if (!data.session || !data.user) {
+      console.error('❌ Token verification returned no session');
+      return c.json({ 
+        error: 'Could not create session',
+        success: false
+      }, 400);
+    }
+    
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('✅ TOKEN VERIFIED SUCCESSFULLY');
+    console.log('   User ID:', data.user.id);
+    console.log('   Email:', data.user.email);
+    console.log('   Session created:', !!data.session);
+    console.log('   Access token length:', data.session.access_token?.length || 0);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    
+    // Return session info to frontend
+    // Frontend will store this and use it for password update
+    return c.json({
+      success: true,
+      session: {
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+        expires_at: data.session.expires_at,
+        expires_in: data.session.expires_in,
+        token_type: data.session.token_type
+      },
+      user: {
+        id: data.user.id,
+        email: data.user.email
+      },
+      message: 'Token verified successfully. You can now update your password.'
+    });
+    
+  } catch (err: any) {
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error('❌ UNEXPECTED SERVER ERROR:');
+    console.error('   Error:', err);
+    console.error('   Message:', err.message);
+    console.error('   Stack:', err.stack);
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    
+    return c.json({ 
+      error: 'Server error during token verification',
+      details: err.message,
+      success: false
+    }, 500);
+  }
+});
+
 // ==================== USER PROFILE ROUTES ====================
 
 // Get user profile

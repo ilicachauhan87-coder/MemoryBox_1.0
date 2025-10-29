@@ -38,28 +38,52 @@ export function PasswordResetLandingPage() {
     // 🔍 ENHANCED DEBUGGING
     console.log('🔍 Password Reset Landing Page - URL Analysis:');
     console.log('   Full URL:', window.location.href);
+    console.log('   Hash:', window.location.hash);
     console.log('   Search params:', location.search);
     
-    // Parse token from URL query parameter (NOT hash)
-    // Supabase sends: /auth/reset-password?token=xxx&type=recovery
+    // APPROACH 1: Check if we have a redirect parameter (from email)
     const queryParams = new URLSearchParams(location.search);
-    const tokenParam = queryParams.get('token');
-    const typeParam = queryParams.get('type');
+    const redirectUrl = queryParams.get('redirect');
     
-    console.log('   Parsed Params:', {
-      token: tokenParam ? 'PRESENT' : 'MISSING',
+    if (redirectUrl) {
+      // Extract access_token from the confirmation URL
+      console.log('   Redirect URL found:', redirectUrl);
+      const url = new URL(redirectUrl);
+      const hashParams = new URLSearchParams(url.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      const typeParam = hashParams.get('type');
+      
+      console.log('   Parsed from redirect:', {
+        access_token: accessToken ? 'PRESENT' : 'MISSING',
+        type: typeParam
+      });
+      
+      if (accessToken && typeParam === 'recovery') {
+        setToken(accessToken);
+        console.log('✅ Password reset token extracted from redirect URL');
+        return;
+      }
+    }
+    
+    // APPROACH 2: Check for direct hash fragment (if Supabase redirected here)
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = hashParams.get('access_token');
+    const typeParam = hashParams.get('type');
+    
+    console.log('   Parsed Hash Params:', {
+      access_token: accessToken ? 'PRESENT' : 'MISSING',
       type: typeParam
     });
     
-    if (tokenParam && typeParam === 'recovery') {
+    if (accessToken && typeParam === 'recovery') {
       // Store token in memory (NOT calling verify yet)
       // This prevents email prefetchers from consuming it
-      setToken(tokenParam);
+      setToken(accessToken);
       console.log('✅ Password reset token detected and stored (not verified yet)');
-    } else if (!tokenParam) {
+    } else if (!accessToken && !redirectUrl) {
       setError('No password reset token found in URL. Please use the link from your email.');
-      console.error('❌ No token parameter found in URL');
-    } else if (typeParam !== 'recovery') {
+      console.error('❌ No access_token found in hash fragment or redirect parameter');
+    } else if (typeParam && typeParam !== 'recovery') {
       setError(`Invalid token type: ${typeParam}. Expected 'recovery'.`);
       console.error('❌ Invalid token type:', typeParam);
     }
@@ -79,10 +103,11 @@ export function PasswordResetLandingPage() {
       
       const supabase = getSupabaseClient();
       
-      // Call Supabase verifyOtp to consume the token and create a session
-      const { data, error: verifyError } = await supabase.auth.verifyOtp({
-        token_hash: token,
-        type: 'recovery'
+      // Set the session using the access token from the hash
+      // This consumes the token and creates an authenticated session
+      const { data, error: verifyError } = await supabase.auth.setSession({
+        access_token: token,
+        refresh_token: '' // Not needed for password recovery
       });
 
       if (verifyError) {

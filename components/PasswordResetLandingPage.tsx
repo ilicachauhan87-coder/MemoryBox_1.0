@@ -43,18 +43,25 @@ export function PasswordResetLandingPage() {
     
     // Parse query parameters for Supabase password recovery token
     const queryParams = new URLSearchParams(location.search);
-    const codeParam = queryParams.get('code'); // Supabase sends ?code=xxx
-    const tokenParam = queryParams.get('token'); // Fallback for old format
+    const tokenParam = queryParams.get('token'); // Long token hash (correct for magic links)
+    const codeParam = queryParams.get('code'); // 6-digit OTP (wrong for magic links)
     const typeParam = queryParams.get('type');
     
     console.log('   Parsed Query Params:', {
-      code: codeParam ? 'PRESENT' : 'MISSING',
-      token: tokenParam ? 'PRESENT' : 'MISSING',
+      token: tokenParam ? `PRESENT (${tokenParam.length} chars)` : 'MISSING',
+      code: codeParam ? `PRESENT (${codeParam.length} chars - ${codeParam.length === 6 ? 'OTP FORMAT ❌' : 'TOKEN HASH ✅'})` : 'MISSING',
       type: typeParam
     });
     
-    // Use code or token (code is preferred for Supabase v2)
-    const recoveryToken = codeParam || tokenParam;
+    // Prefer token over code (token is the long hash for magic links)
+    const recoveryToken = tokenParam || codeParam;
+    
+    // Warn if we got a 6-digit OTP instead of token hash
+    if (codeParam && codeParam.length === 6 && !tokenParam) {
+      console.warn('⚠️ Received 6-digit OTP instead of token hash!');
+      console.warn('   Email template is using {{ .Token }} instead of {{ .TokenHash }}');
+      console.warn('   This will fail during verification.');
+    }
     
     // APPROACH 1: Check for query parameter token (?code=xxx or ?token=xxx)
     if (recoveryToken && typeParam === 'recovery') {
@@ -139,9 +146,19 @@ export function PasswordResetLandingPage() {
 
       if (verifyError) {
         console.error('❌ Token verification failed:', verifyError);
+        console.error('   Error details:', {
+          message: verifyError.message,
+          status: verifyError.status,
+          tokenLength: token?.length
+        });
         
+        // Check if this is a 6-digit OTP (wrong format)
+        if (token && token.length === 6) {
+          setError('Your password reset email is using an outdated format (6-digit code instead of secure token). Please contact support or request a new link after the email template is updated.');
+          console.error('❌ DIAGNOSIS: Email template is using {{ .Token }} (6-digit OTP) instead of {{ .TokenHash }} (long token)');
+        } 
         // Parse error for specific messages
-        if (verifyError.message.includes('expired')) {
+        else if (verifyError.message.includes('expired')) {
           setError('This password reset link has expired. Password reset links are only valid for 1 hour for security. Please request a new one below.');
         } else if (verifyError.message.includes('invalid') || verifyError.message.includes('not found')) {
           setError('This password reset link is invalid or has already been used. Please request a new one below.');

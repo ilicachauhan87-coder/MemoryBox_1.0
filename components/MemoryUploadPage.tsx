@@ -9,6 +9,8 @@ import { Progress } from './ui/progress';
 import { Checkbox } from './ui/checkbox';
 import { MultiSelectDropdown } from './MultiSelectDropdown';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar as CalendarComponent } from './ui/calendar';
 import { DatabaseService } from '../utils/supabase/persistent-database';
 import type { UserProfile, FamilyData } from '../utils/supabase/client';
 import { toast } from "sonner@2.0.3";
@@ -2639,25 +2641,67 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
                 <div>
                   <Label htmlFor="date" className="text-base">Date</Label>
                   <div>
-                    <Input
-                      id="date"
-                      type="text"
-                      value={formatDateForDisplay(date)}
-                      onChange={(e) => {
-                        const formatted = formatDateInput(e.target.value);
-                        setDate(formatted);
-                      }}
-                      onBlur={(e) => {
-                        // Convert to storage format on blur
-                        const displayValue = e.target.value;
-                        if (displayValue && isValidDDMMYYYY(displayValue)) {
-                          const storageValue = formatDateForStorage(displayValue);
-                          setDate(storageValue);
-                        }
-                      }}
-                      placeholder="DD-MM-YYYY (e.g., 15-03-2024)"
-                      maxLength={10}
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        id="date"
+                        type="text"
+                        value={formatDateForDisplay(date)}
+                        onChange={(e) => {
+                          const formatted = formatDateInput(e.target.value);
+                          setDate(formatted);
+                        }}
+                        onBlur={(e) => {
+                          // Convert to storage format on blur
+                          const displayValue = e.target.value;
+                          if (displayValue && isValidDDMMYYYY(displayValue)) {
+                            const storageValue = formatDateForStorage(displayValue);
+                            setDate(storageValue);
+                          }
+                        }}
+                        placeholder="DD-MM-YYYY (e.g., 15-03-2024)"
+                        maxLength={10}
+                        className="flex-1"
+                      />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="px-3 min-w-[48px] min-h-[48px]"
+                            aria-label="Pick a date from calendar"
+                          >
+                            <Calendar className="h-5 w-5" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="end">
+                          <CalendarComponent
+                            mode="single"
+                            selected={(() => {
+                              // Parse DD-MM-YYYY to Date object
+                              const displayDate = formatDateForDisplay(date);
+                              if (!displayDate || !isValidDDMMYYYY(displayDate)) return undefined;
+                              const [day, month, year] = displayDate.split('-').map(Number);
+                              return new Date(year, month - 1, day);
+                            })()}
+                            onSelect={(selectedDate) => {
+                              if (selectedDate) {
+                                // Convert Date object to DD-MM-YYYY format
+                                const day = String(selectedDate.getDate()).padStart(2, '0');
+                                const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                                const year = selectedDate.getFullYear();
+                                const ddmmyyyy = `${day}-${month}-${year}`;
+                                // Convert to storage format
+                                const storageValue = formatDateForStorage(ddmmyyyy);
+                                setDate(storageValue);
+                              }
+                            }}
+                            disabled={(date) => date > new Date() || date < new Date('1900-01-01')}
+                            initialFocus
+                            className="rounded-md border"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                     {date && !isValidDDMMYYYY(formatDateForDisplay(date)) && (
                       <p className="text-sm text-destructive mt-1">Please enter date in DD-MM-YYYY format</p>
                     )}
@@ -2880,6 +2924,37 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
+
+              {/* Display custom emotions (not in predefined list) */}
+              {(() => {
+                const predefinedEmotionNames = predefinedEmotions.map(e => e.name);
+                const customEmotions = emotionTags.filter(tag => !predefinedEmotionNames.includes(tag));
+                
+                if (customEmotions.length > 0) {
+                  return (
+                    <div className="pt-2 border-t border-gray-200">
+                      <p className="text-sm text-gray-600 mb-2">Your custom emotions:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {customEmotions.map((emotion) => (
+                          <Badge 
+                            key={emotion} 
+                            variant="secondary"
+                            className="flex items-center gap-1 bg-violet/10 text-violet border border-violet/30 hover:bg-violet/20 transition-colors"
+                          >
+                            <Sparkles className="h-3 w-3" />
+                            {emotion}
+                            <X 
+                              className="h-3 w-3 cursor-pointer hover:text-red-600" 
+                              onClick={() => handleToggleEmotion(emotion)}
+                            />
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
           </div>
 

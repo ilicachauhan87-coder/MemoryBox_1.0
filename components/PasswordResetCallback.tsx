@@ -3,9 +3,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Alert, AlertDescription } from './ui/alert';
-import { CheckCircle, AlertCircle, Lock, Loader2 } from 'lucide-react';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { CheckCircle, AlertCircle, Lock, Loader2, Mail } from 'lucide-react';
 import { getSupabaseClient } from '../utils/supabase/client';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { toast } from 'sonner@2.0.3';
 
 /**
  * Password Reset Callback Page
@@ -20,6 +23,9 @@ export function PasswordResetCallback() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string>('');
   const [hasToken, setHasToken] = useState(false);
+  const [resendEmail, setResendEmail] = useState('');
+  const [isResending, setIsResending] = useState(false);
+  const [showResendForm, setShowResendForm] = useState(false);
 
   useEffect(() => {
     // Check if we have a token in the URL
@@ -27,15 +33,39 @@ export function PasswordResetCallback() {
     const accessToken = hashParams.get('access_token');
     const type = hashParams.get('type');
     
+    // Check for errors from Supabase (token expired/invalid)
+    const errorParam = hashParams.get('error');
+    const errorCode = hashParams.get('error_code');
+    const errorDescription = hashParams.get('error_description');
+    
     // Also check query params (some email clients may use this)
     const queryParams = new URLSearchParams(location.search);
     const tokenHash = queryParams.get('token_hash') || queryParams.get('token');
     
+    // 🔍 Handle Supabase errors (expired/invalid tokens)
+    if (errorParam) {
+      console.error('❌ Supabase Auth Error:', {
+        error: errorParam,
+        code: errorCode,
+        description: errorDescription
+      });
+      
+      if (errorCode === 'otp_expired') {
+        setError('This password reset link has expired. Password reset links are only valid for 1 hour for security. Please request a new one below.');
+      } else if (errorParam === 'access_denied') {
+        setError('This password reset link is invalid or has already been used. Please request a new one below.');
+      } else {
+        setError(`${errorDescription || 'Invalid password reset link'}. Please request a new one below.`);
+      }
+      return;
+    }
+    
+    // Check if we have a valid token
     if ((accessToken && type === 'recovery') || tokenHash) {
       setHasToken(true);
       console.log('✅ Password reset token detected');
     } else {
-      setError('Invalid or expired password reset link. Please request a new one.');
+      setError('Invalid or expired password reset link. Please request a new one below.');
       console.error('❌ No valid token found in URL');
     }
   }, [location]);
@@ -118,6 +148,50 @@ export function PasswordResetCallback() {
     }
   };
 
+  const handleResendResetLink = async () => {
+    if (!resendEmail || !resendEmail.includes('@')) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    setIsResending(true);
+
+    try {
+      const supabase = getSupabaseClient();
+      
+      // Detect environment for redirect URL
+      const isProduction = window.location.hostname !== 'localhost' && 
+                          !window.location.hostname.includes('127.0.0.1') &&
+                          !window.location.hostname.includes('figma');
+      
+      const redirectUrl = isProduction 
+        ? `${window.location.origin}/auth/callback`
+        : `http://localhost:3000/auth/callback`;
+      
+      console.log('🔐 Resending password reset email to:', resendEmail);
+      console.log('🔗 Redirect URL:', redirectUrl);
+
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(resendEmail, {
+        redirectTo: redirectUrl
+      });
+
+      if (resetError) {
+        throw resetError;
+      }
+
+      console.log('✅ Password reset email resent successfully');
+      toast.success('New password reset email sent! Check your inbox.');
+      setShowResendForm(false);
+      setResendEmail('');
+      
+    } catch (err: any) {
+      console.error('❌ Resend reset email error:', err);
+      toast.error(err.message || 'Failed to send reset email. Please try again.');
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-cream flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -133,10 +207,71 @@ export function PasswordResetCallback() {
 
         <CardContent className="space-y-4">
           {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+            <>
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+
+              {!showResendForm ? (
+                <Button
+                  onClick={() => setShowResendForm(true)}
+                  className="w-full bg-coral hover:bg-coral/90 text-white h-12"
+                >
+                  <Mail className="mr-2 h-4 w-4" />
+                  Request New Reset Link
+                </Button>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="resend-email" className="text-sm text-ink/70 mb-1 block">
+                      Enter your email address
+                    </Label>
+                    <Input
+                      id="resend-email"
+                      type="email"
+                      placeholder="your.email@example.com"
+                      value={resendEmail}
+                      onChange={(e) => setResendEmail(e.target.value)}
+                      disabled={isResending}
+                      className="h-11"
+                    />
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleResendResetLink}
+                      disabled={isResending}
+                      className="flex-1 bg-violet hover:bg-violet/90 text-white h-11"
+                    >
+                      {isResending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="mr-2 h-4 w-4" />
+                          Send Reset Link
+                        </>
+                      )}
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowResendForm(false);
+                        setResendEmail('');
+                      }}
+                      disabled={isResending}
+                      className="px-4"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {hasToken && !error && (

@@ -38,7 +38,16 @@ import {
   Trash2,
   Play,
   FileAudio,
-  Edit
+  Edit,
+  Smile,
+  Laugh,
+  Zap,
+  ThumbsUp,
+  Crown,
+  Baby,
+  PartyPopper,
+  Frown,
+  MessageSquare
 } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { validateFamilyAccess, formatRelativeTime, isDemoUser, hasValidUserAndFamily } from '../utils/app-helpers';
@@ -172,6 +181,22 @@ const COMMON_TAGS = [
   'Onam',
   'Baisakhi',
   'Janmashtami'
+];
+
+// Predefined emotions (matching MemoryUploadPage.tsx)
+const PREDEFINED_EMOTIONS = [
+  { name: 'Happy', icon: Smile, color: 'from-yellow-400 to-orange-400', textColor: 'text-yellow-700', bgColor: 'bg-yellow-100' },
+  { name: 'Joyful', icon: Laugh, color: 'from-orange-400 to-red-400', textColor: 'text-orange-700', bgColor: 'bg-orange-100' },
+  { name: 'Excited', icon: Zap, color: 'from-purple-400 to-pink-400', textColor: 'text-purple-700', bgColor: 'bg-purple-100' },
+  { name: 'Proud', icon: ThumbsUp, color: 'from-blue-400 to-indigo-400', textColor: 'text-blue-700', bgColor: 'bg-blue-100' },
+  { name: 'Blessed', icon: Crown, color: 'from-amber-400 to-yellow-400', textColor: 'text-amber-700', bgColor: 'bg-amber-100' },
+  { name: 'Grateful', icon: Heart, color: 'from-pink-400 to-rose-400', textColor: 'text-pink-700', bgColor: 'bg-pink-100' },
+  { name: 'Surprised', icon: Gift, color: 'from-green-400 to-emerald-400', textColor: 'text-green-700', bgColor: 'bg-green-100' },
+  { name: 'Playful', icon: Baby, color: 'from-cyan-400 to-blue-400', textColor: 'text-cyan-700', bgColor: 'bg-cyan-100' },
+  { name: 'Celebratory', icon: PartyPopper, color: 'from-violet-400 to-purple-400', textColor: 'text-violet-700', bgColor: 'bg-violet-100' },
+  { name: 'Nostalgic', icon: Star, color: 'from-indigo-400 to-blue-400', textColor: 'text-indigo-700', bgColor: 'bg-indigo-100' },
+  { name: 'Peaceful', icon: MessageSquare, color: 'from-teal-400 to-cyan-400', textColor: 'text-teal-700', bgColor: 'bg-teal-100' },
+  { name: 'Emotional', icon: Frown, color: 'from-gray-400 to-slate-400', textColor: 'text-gray-700', bgColor: 'bg-gray-100' }
 ];
 
 interface FilterState {
@@ -1432,6 +1457,46 @@ export const VaultPage: React.FC<VaultPageProps> = ({ user, family, onNavigate }
                           <span className="text-xs text-muted-foreground truncate">{memory.location}</span>
                         </div>
                       )}
+                      
+                      {/* 🆕 Emotions Display */}
+                      {memory.emotionTags && memory.emotionTags.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 min-w-0 pt-1">
+                          {memory.emotionTags.slice(0, 3).map((emotion: string, idx: number) => {
+                            const predefinedEmotion = PREDEFINED_EMOTIONS.find(e => e.name === emotion);
+                            
+                            if (predefinedEmotion) {
+                              const Icon = predefinedEmotion.icon;
+                              return (
+                                <Badge 
+                                  key={idx} 
+                                  variant="secondary"
+                                  className={`text-xs px-2 py-0.5 ${predefinedEmotion.bgColor} ${predefinedEmotion.textColor} border-0 flex items-center gap-1`}
+                                >
+                                  <Icon className="w-3 h-3" />
+                                  <span>{emotion}</span>
+                                </Badge>
+                              );
+                            } else {
+                              // Custom emotion
+                              return (
+                                <Badge 
+                                  key={idx} 
+                                  variant="secondary"
+                                  className="text-xs px-2 py-0.5 bg-violet/10 text-violet border-0 flex items-center gap-1"
+                                >
+                                  <Sparkles className="w-3 h-3" />
+                                  <span>{emotion}</span>
+                                </Badge>
+                              );
+                            }
+                          })}
+                          {memory.emotionTags.length > 3 && (
+                            <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-muted text-muted-foreground border-0">
+                              +{memory.emotionTags.length - 3}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -1618,6 +1683,47 @@ export const VaultPage: React.FC<VaultPageProps> = ({ user, family, onNavigate }
                   <div className="flex items-center space-x-2 text-muted-foreground w-full">
                     <MapPin className="w-4 h-4 flex-shrink-0" />
                     <span className="break-words flex-1">{selectedMemory.location}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* 🆕 Emotions Section */}
+              {selectedMemory.emotionTags && selectedMemory.emotionTags.length > 0 && (
+                <div className="space-y-3 w-full">
+                  <h4 className="font-medium text-foreground flex items-center gap-2">
+                    <Heart className="w-4 h-4 text-primary" />
+                    Emotions & Feelings
+                  </h4>
+                  <div className="flex flex-wrap gap-2 w-full">
+                    {selectedMemory.emotionTags.map((emotion: string, index: number) => {
+                      const predefinedEmotion = PREDEFINED_EMOTIONS.find(e => e.name === emotion);
+                      
+                      if (predefinedEmotion) {
+                        const Icon = predefinedEmotion.icon;
+                        return (
+                          <Badge 
+                            key={index} 
+                            variant="secondary"
+                            className={`px-3 py-1.5 ${predefinedEmotion.bgColor} ${predefinedEmotion.textColor} border border-current/20 flex items-center gap-2 text-sm`}
+                          >
+                            <Icon className="w-4 h-4" />
+                            <span>{emotion}</span>
+                          </Badge>
+                        );
+                      } else {
+                        // Custom emotion with violet theme
+                        return (
+                          <Badge 
+                            key={index} 
+                            variant="secondary"
+                            className="px-3 py-1.5 bg-gradient-to-r from-violet/10 to-coral/10 text-violet border border-violet/30 flex items-center gap-2 text-sm hover:from-violet/20 hover:to-coral/20 transition-colors"
+                          >
+                            <Sparkles className="w-4 h-4" />
+                            <span>{emotion}</span>
+                          </Badge>
+                        );
+                      }
+                    })}
                   </div>
                 </div>
               )}

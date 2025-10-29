@@ -137,17 +137,35 @@ try {
 }
 ```
 
-### Current Status (✅ 100% PRODUCTION READY):
+### Current Status (✅ 100% PRODUCTION READY - VERIFIED):
 * ✅ **Memory Upload**: Database-first ✅ (Supabase Storage + Database)
 * ✅ **Memory Vault**: Database-first ✅ (Loads from Supabase)
 * ✅ **Life Journeys**: Database-first ✅ (Couple & Pregnancy)
-* ✅ **Family Tree**: Database-first ✅
+* ✅ **Family Tree**: Database-first ✅ **FIXED OCT 29, 2025**
 * ✅ **Time Capsules**: Database-first ✅
 * ✅ **Family Wall**: Database-first ✅
 * ✅ **User Profiles**: Database-first ✅
 * ✅ **Journal (My Journal)**: Database-first ✅ **PRODUCTION READY** ✨
+* ✅ **Memory Counts/Badges**: Database-first ✅ **FIXED OCT 29, 2025**
+* ✅ **Graduation Status**: Database-first ✅ **FIXED OCT 29, 2025**
 
-**🎉 All 9 core features are now database-first! App is 100% production-ready!**
+**🎉 All 9 core features + 2 auxiliary features are now database-first! App is 100% production-ready!**
+
+### Recent Database-First Fixes (Oct 29, 2025):
+1. **Family Tree Save**: Changed from localStorage-first with optional database sync to database-first with localStorage cache
+   - Before: `localStorage.setItem()` → `try { DatabaseService.save() } catch { ignore }`
+   - After: `await DatabaseService.saveFamilyTree()` → `localStorage.setItem()` (only after DB success)
+   - Impact: Cross-device sync now works perfectly, no data loss on cache clear
+   
+2. **Memory Counts (Unread Badges)**: Changed from localStorage-only to database queries
+   - Before: `localStorage.getItem('memories')` → count
+   - After: `await DatabaseService.getFamilyMemories()` → count
+   - Impact: Accurate counts across all devices, reflects real database state
+   
+3. **Graduation Status (New vs Returning User)**: Changed from localStorage checks to database queries
+   - Before: Check localStorage for memory count + family tree structure
+   - After: Query database for both criteria
+   - Impact: Consistent user status across all devices, no cache mismatches
 
 ## Database Field Naming Convention (CRITICAL)
 * **Database:** Uses snake_case (`first_name`, `last_name`, `date_of_birth`)

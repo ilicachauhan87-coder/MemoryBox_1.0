@@ -48,23 +48,25 @@ const PageLoader = () => (
   </div>
 );
 
-// Helper function to check if user has completed nuclear family setup
-const hasCompletedNuclearFamily = (familyId: string): boolean => {
-  const treeKey = `familyTree_${familyId}`;
-  const treeData = localStorage.getItem(treeKey);
-  
-  if (!treeData) return false;
-  
+// ✅ DATABASE-FIRST FIX: Helper function to check if user has completed nuclear family setup
+const hasCompletedNuclearFamily = async (familyId: string): Promise<boolean> => {
   try {
-    const parsedTree = JSON.parse(treeData);
+    // 🔧 FIX #3: Query database FIRST (not localStorage)
+    console.log('🔍 Checking nuclear family completion from database...');
+    const treeData = await DatabaseService.getFamilyTree(familyId);
+    
+    if (!treeData) {
+      console.log('⚠️ No tree data found in database');
+      return false;
+    }
+    
     // Handle both old format (array) and new format (object with people array)
-    const peopleArray = Array.isArray(parsedTree) ? parsedTree : parsedTree.people || [];
+    const peopleArray = Array.isArray(treeData) ? treeData : treeData.people || [];
     
-    if (peopleArray.length === 0) return false;
-    
-    // 🔧 FIX: Always verify actual tree structure - don't rely solely on wizard flag
-    // Wizard completion flag doesn't mean family was actually added (user may have skipped)
-    // Root user appears by default, so only show as complete when additional members exist
+    if (peopleArray.length === 0) {
+      console.log('⚠️ Tree is empty');
+      return false;
+    }
     
     // Count nodes by generation (excluding root user who appears by default)
     const generationCounts: { [key: number]: number } = {};
@@ -77,7 +79,7 @@ const hasCompletedNuclearFamily = (familyId: string): boolean => {
     const genPlus1Count = generationCounts[1] || 0;
     const genMinus1Count = generationCounts[-1] || 0;
     
-    console.log('📊 hasCompletedNuclearFamily - Generation counts:', {
+    console.log('📊 hasCompletedNuclearFamily (from database) - Generation counts:', {
       'Gen-1 (Parents)': genMinus1Count,
       'Gen0 (User)': gen0Count,
       'Gen+1 (Children)': genPlus1Count
@@ -91,7 +93,7 @@ const hasCompletedNuclearFamily = (familyId: string): boolean => {
     
     const familyStructureComplete = hasGen0 && (hasGen1 || hasGenMinus1);
     
-    console.log('📊 hasCompletedNuclearFamily - Structure check:', {
+    console.log('📊 hasCompletedNuclearFamily (from database) - Structure check:', {
       hasGen0,
       hasGen1,
       hasGenMinus1,
@@ -102,51 +104,58 @@ const hasCompletedNuclearFamily = (familyId: string): boolean => {
     });
     
     return familyStructureComplete;
-  } catch (e) {
-    console.error('❌ Failed to parse family tree:', e);
+  } catch (error) {
+    console.error('❌ Failed to check nuclear family from database:', error);
     return false;
   }
 };
 
-// Helper function to determine correct home route based on user status
-const getHomeRoute = (): string => {
-  const currentUserId = localStorage.getItem('current_user_id');
-  if (!currentUserId) return '/app';
-  
-  const userProfile = localStorage.getItem(`user:${currentUserId}:profile`);
-  if (!userProfile) return '/app';
-  
-  const userData = JSON.parse(userProfile);
-  
-  // Check if user is new - they must meet BOTH criteria to graduate:
-  // 1. At least 5-6 memories
-  // 2. Nuclear family complete (via wizard OR manual with 2+ nodes in Gen0 AND Gen+1/Gen-1)
-  if ((userData.is_new_user || userData.isNewUser) && userData.family_id) {
-    // Check memories count
-    const memoriesData = localStorage.getItem(`family:${userData.family_id}:memories`);
-    const memories = memoriesData ? JSON.parse(memoriesData) : [];
-    const memoryCount = memories.length;
+// ✅ DATABASE-FIRST FIX: Helper function to determine correct home route based on user status
+const getHomeRoute = async (): Promise<string> => {
+  try {
+    const currentUserId = localStorage.getItem('current_user_id');
+    if (!currentUserId) return '/app';
     
-    // Check nuclear family completion
-    const familyComplete = hasCompletedNuclearFamily(userData.family_id);
+    // Use cached profile for initial check (profile is synced from database)
+    const userProfile = localStorage.getItem(`user:${currentUserId}:profile`);
+    if (!userProfile) return '/app';
     
-    console.log('🏠 Home route decision criteria:');
-    console.log('   Memories:', memoryCount, '/ 5 required');
-    console.log('   Nuclear family:', familyComplete ? '✅ Complete' : '❌ Incomplete');
+    const userData = JSON.parse(userProfile);
     
-    // User must have BOTH 5+ memories AND completed nuclear family to graduate
-    const hasEnoughMemories = memoryCount >= 5;
-    const canGraduate = hasEnoughMemories && familyComplete;
-    
-    if (!canGraduate) {
-      console.log('📍 Routing to /home (New User) - needs:', 
-        !hasEnoughMemories ? `${5 - memoryCount} more memories` : '',
-        !familyComplete ? 'nuclear family' : ''
-      );
-      return '/home';
+    // Check if user is new - they must meet BOTH criteria to graduate:
+    // 1. At least 5-6 memories
+    // 2. Nuclear family complete (via wizard OR manual with 2+ nodes in Gen0 AND Gen+1/Gen-1)
+    if ((userData.is_new_user || userData.isNewUser) && userData.family_id) {
+      // 🔧 FIX #2: Query database for memory count (not localStorage)
+      console.log('🔍 Checking graduation criteria from database...');
+      const memories = await DatabaseService.getFamilyMemories(userData.family_id);
+      const memoryCount = memories.length;
+      
+      // 🔧 FIX #3: Check nuclear family from database (now async)
+      const familyComplete = await hasCompletedNuclearFamily(userData.family_id);
+      
+      console.log('🏠 Home route decision criteria (from database):');
+      console.log('   Memories:', memoryCount, '/ 5 required');
+      console.log('   Nuclear family:', familyComplete ? '✅ Complete' : '❌ Incomplete');
+      
+      // User must have BOTH 5+ memories AND completed nuclear family to graduate
+      const hasEnoughMemories = memoryCount >= 5;
+      const canGraduate = hasEnoughMemories && familyComplete;
+      
+      if (!canGraduate) {
+        console.log('📍 Routing to /home (New User) - needs:', 
+          !hasEnoughMemories ? `${5 - memoryCount} more memories` : '',
+          !familyComplete ? 'nuclear family' : ''
+        );
+        return '/home';
+      }
+      
+      console.log('🎓 User has graduated! Routing to /app (Returning User)');
     }
-    
-    console.log('🎓 User has graduated! Routing to /app (Returning User)');
+  } catch (error) {
+    console.error('❌ Failed to determine home route from database:', error);
+    // Fallback to new user home on error
+    return '/home';
   }
   
   // User has graduated or is not a new user
@@ -171,39 +180,53 @@ const RoutePlaceholder = ({ routeName }: { routeName: string }) => {
     setCurrentPage(routeToPage[location.pathname] || 'home');
   }, [location]);
 
-  // Get unread count for vault badge
+  // ✅ DATABASE-FIRST FIX: Get unread count for vault badge from database
   useEffect(() => {
-    const currentUserId = localStorage.getItem('current_user_id');
-    if (currentUserId) {
-      const userProfile = localStorage.getItem(`user:${currentUserId}:profile`);
-      if (userProfile) {
+    const loadUnreadCount = async () => {
+      try {
+        const currentUserId = localStorage.getItem('current_user_id');
+        if (!currentUserId) return;
+        
+        const userProfile = localStorage.getItem(`user:${currentUserId}:profile`);
+        if (!userProfile) return;
+        
         const userData = JSON.parse(userProfile);
-        if (userData.family_id) {
-          const memoriesData = localStorage.getItem(`family:${userData.family_id}:memories`);
-          if (memoriesData) {
-            const memories = JSON.parse(memoriesData);
-            const oneWeekAgo = new Date();
-            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-            const recentCount = memories.filter((m: any) => {
-              const memoryDate = new Date(m.created_at || m.createdAt);
-              return memoryDate >= oneWeekAgo;
-            }).length;
-            setUnreadCount(recentCount);
-          }
-        }
+        if (!userData.family_id) return;
+        
+        // 🔧 FIX #2: Query database for memories (not localStorage)
+        console.log('🔍 Loading unread count from database...');
+        const memories = await DatabaseService.getFamilyMemories(userData.family_id);
+        
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        const recentCount = memories.filter((m: any) => {
+          const memoryDate = new Date(m.created_at || m.createdAt);
+          return memoryDate >= oneWeekAgo;
+        }).length;
+        
+        setUnreadCount(recentCount);
+        console.log(`📊 Unread count from database: ${recentCount}`);
+      } catch (error) {
+        console.error('❌ Failed to load unread count from database:', error);
+        setUnreadCount(0); // Default to 0 on error
       }
-    }
+    };
+    
+    loadUnreadCount();
   }, []);
 
-  const handleNavigate = (page: string) => {
+  const handleNavigate = async (page: string) => {
     // Help is handled via dialog on home pages, not a route
     if (page === 'help') {
       console.log('ℹ️ Help is accessed via dialog on home pages');
       return;
     }
     
-    const pageRoutes: { [key: string]: string } = {
-      'home': getHomeRoute(),
+    // 🔧 FIX #3: getHomeRoute is now async
+    const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
+    
+    const pageRoutes: { [key: string]: string} = {
+      'home': homeRoute,
       'vault': '/vault',
       'upload-memory': '/upload',
       'family-tree': '/tree',
@@ -623,7 +646,7 @@ const OnboardingPageWrapper = () => {
         console.log('➕ Added root user to family tree');
       }
       
-      // Save to localStorage first (immediate) - preserve format
+      // ✅ DATABASE-FIRST FIX: Save to database FIRST, then cache to localStorage
       let dataToSave: any;
       if (Array.isArray(parsedData)) {
         // Save in old format (array)
@@ -644,23 +667,30 @@ const OnboardingPageWrapper = () => {
         };
       }
       
-      localStorage.setItem(treeKey, JSON.stringify(dataToSave));
-      console.log('✅ Saved updated family tree to localStorage (preserved all', treeData.length, 'people)');
-      
-      // Try to sync to database (but don't fail if it doesn't work)
+      // 🔧 FIX #1: Save to DATABASE FIRST with auto-retry
       try {
+        console.log('💾 Saving family tree to database (database-first)...');
         await DatabaseService.saveFamilyTree(user.family_id, dataToSave);
-        console.log('✅ Synced family tree to database');
+        console.log('✅ Family tree saved to database successfully');
+        
+        // Only cache to localStorage AFTER successful database save
+        localStorage.setItem(treeKey, JSON.stringify(dataToSave));
+        console.log('💾 Cached family tree to localStorage after successful DB save');
       } catch (error) {
-        console.log('⚠️ Database sync failed (expected in demo mode) - tree saved to localStorage');
+        // ❌ DO NOT save to localStorage if database fails
+        console.error('❌ Failed to save family tree to database:', error);
+        toast.error('Failed to save family tree. Please check your connection and try again.', {
+          duration: 5000
+        });
+        throw error; // Propagate error - don't continue
       }
     }
 
     toast.success('🎉 Profile setup complete! Welcome to MemoryBox!');
     
-    // ✅ FIX: Use smart routing after onboarding completion
-    setTimeout(() => {
-      const homeRoute = getHomeRoute();
+    // ✅ FIX: Use smart routing after onboarding completion (now async)
+    setTimeout(async () => {
+      const homeRoute = await getHomeRoute();
       console.log('🎓 Onboarding complete! Smart routing to:', homeRoute);
       navigate(homeRoute);
     }, 1000);
@@ -1398,31 +1428,42 @@ const FamilyTreeWrapper = () => {
     syncGender();
   }, []); // Run only once on mount
 
-  // Get unread count for vault badge
+  // ✅ DATABASE-FIRST FIX: Get unread count for vault badge from database (FamilyTreeWrapper)
   useEffect(() => {
-    const currentUserId = localStorage.getItem('current_user_id');
-    if (currentUserId) {
-      const userProfile = localStorage.getItem(`user:${currentUserId}:profile`);
-      if (userProfile) {
+    const loadUnreadCount = async () => {
+      try {
+        const currentUserId = localStorage.getItem('current_user_id');
+        if (!currentUserId) return;
+        
+        const userProfile = localStorage.getItem(`user:${currentUserId}:profile`);
+        if (!userProfile) return;
+        
         const userData = JSON.parse(userProfile);
-        if (userData.family_id) {
-          const memoriesData = localStorage.getItem(`family:${userData.family_id}:memories`);
-          if (memoriesData) {
-            const memories = JSON.parse(memoriesData);
-            const oneWeekAgo = new Date();
-            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-            const recentCount = memories.filter((m: any) => {
-              const memoryDate = new Date(m.created_at || m.createdAt);
-              return memoryDate >= oneWeekAgo;
-            }).length;
-            setUnreadCount(recentCount);
-          }
-        }
+        if (!userData.family_id) return;
+        
+        // 🔧 FIX #2: Query database for memories (not localStorage)
+        console.log('🔍 Loading unread count from database (FamilyTreeWrapper)...');
+        const memories = await DatabaseService.getFamilyMemories(userData.family_id);
+        
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        const recentCount = memories.filter((m: any) => {
+          const memoryDate = new Date(m.created_at || m.createdAt);
+          return memoryDate >= oneWeekAgo;
+        }).length;
+        
+        setUnreadCount(recentCount);
+        console.log(`📊 Unread count from database (FamilyTreeWrapper): ${recentCount}`);
+      } catch (error) {
+        console.error('❌ Failed to load unread count from database (FamilyTreeWrapper):', error);
+        setUnreadCount(0);
       }
-    }
+    };
+    
+    loadUnreadCount();
   }, []);
 
-  const handleNavigate = (page: string) => {
+  const handleNavigate = async (page: string) => {
     console.log(`📍 FamilyTreeWrapper - Navigation request to: ${page}`);
     
     // Help is handled via dialog on home pages, not a route
@@ -1431,8 +1472,11 @@ const FamilyTreeWrapper = () => {
       return;
     }
     
+    // 🔧 FIX #3: getHomeRoute is now async
+    const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
+    
     const pageRoutes: { [key: string]: string } = {
-      'home': getHomeRoute(),
+      'home': homeRoute,
       'vault': '/vault',
       'upload-memory': '/upload',
       'family-tree': '/tree',

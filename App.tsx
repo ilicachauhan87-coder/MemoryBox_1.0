@@ -37,6 +37,8 @@ const FamilyWallPage = lazy(() => import('./components/FamilyWallPage').then(m =
 const HomeHeaderMockups = lazy(() => import('./components/HomeHeaderMockups').then(m => ({ default: m.HomeHeaderMockups })));
 const DebugResetPage = lazy(() => import('./components/DebugResetPage').then(m => ({ default: m.DebugResetPage })));
 const AdminDashboardPage = lazy(() => import('./components/AdminDashboardPage').then(m => ({ default: m.AdminDashboardPage })));
+const PasswordResetCallback = lazy(() => import('./components/PasswordResetCallback').then(m => ({ default: m.PasswordResetCallback })));
+const UpdatePasswordPage = lazy(() => import('./components/UpdatePasswordPage').then(m => ({ default: m.UpdatePasswordPage })));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -3264,6 +3266,10 @@ const App: React.FC = () => {
               <Route path="/" element={<LandingPage />} />
               <Route path="/signup" element={<SignInWrapper mode="signup" />} />
               <Route path="/signin" element={<SignInWrapper mode="signin" />} />
+              
+              {/* Password Reset Routes - Public */}
+              <Route path="/auth/callback" element={<PasswordResetCallback />} />
+              <Route path="/update-password" element={<UpdatePasswordPage />} />
               
               {/* Design Mockups - Public for easy viewing */}
               <Route path="/mockups/header-new" element={<HomeHeaderMockups userType="new" userName="Sarah" />} />

@@ -28,6 +28,12 @@ export function PasswordResetCallback() {
   const [showResendForm, setShowResendForm] = useState(false);
 
   useEffect(() => {
+    // 🔍 ENHANCED DEBUGGING: Log full URL for diagnosis
+    console.log('🔍 Password Reset Callback - Full URL Analysis:');
+    console.log('   Full URL:', window.location.href);
+    console.log('   Hash:', location.hash);
+    console.log('   Search:', location.search);
+    
     // Check if we have a token in the URL
     const hashParams = new URLSearchParams(location.hash.substring(1));
     const accessToken = hashParams.get('access_token');
@@ -41,6 +47,18 @@ export function PasswordResetCallback() {
     // Also check query params (some email clients may use this)
     const queryParams = new URLSearchParams(location.search);
     const tokenHash = queryParams.get('token_hash') || queryParams.get('token');
+    
+    // 🔍 Log all parsed parameters
+    console.log('   Parsed Hash Params:', {
+      access_token: accessToken ? 'PRESENT' : 'MISSING',
+      type,
+      error: errorParam,
+      error_code: errorCode,
+      error_description: errorDescription
+    });
+    console.log('   Parsed Query Params:', {
+      token_hash: tokenHash ? 'PRESENT' : 'MISSING'
+    });
     
     // 🔍 Handle Supabase errors (expired/invalid tokens)
     if (errorParam) {
@@ -65,8 +83,14 @@ export function PasswordResetCallback() {
       setHasToken(true);
       console.log('✅ Password reset token detected');
     } else {
-      setError('Invalid or expired password reset link. Please request a new one below.');
-      console.error('❌ No valid token found in URL');
+      // 🔍 Enhanced error message for empty callback
+      if (!location.hash && !location.search) {
+        console.error('❌ Empty callback - likely Supabase Site URL configuration issue');
+        setError('Password reset link configuration error. Please check that the redirect URL is properly configured in Supabase Dashboard (Authentication → URL Configuration → Redirect URLs). Request a new link below after fixing configuration.');
+      } else {
+        setError('Invalid or expired password reset link. Please request a new one below.');
+        console.error('❌ No valid token found in URL');
+      }
     }
   }, [location]);
 

@@ -38,6 +38,7 @@ const HomeHeaderMockups = lazy(() => import('./components/HomeHeaderMockups').th
 const DebugResetPage = lazy(() => import('./components/DebugResetPage').then(m => ({ default: m.DebugResetPage })));
 const AdminDashboardPage = lazy(() => import('./components/AdminDashboardPage').then(m => ({ default: m.AdminDashboardPage })));
 const PasswordResetCallback = lazy(() => import('./components/PasswordResetCallback').then(m => ({ default: m.PasswordResetCallback })));
+const PasswordResetLandingPage = lazy(() => import('./components/PasswordResetLandingPage').then(m => ({ default: m.PasswordResetLandingPage })));
 const UpdatePasswordPage = lazy(() => import('./components/UpdatePasswordPage').then(m => ({ default: m.UpdatePasswordPage })));
 
 // Loading fallback component
@@ -3268,6 +3269,8 @@ const App: React.FC = () => {
               <Route path="/signin" element={<SignInWrapper mode="signin" />} />
               
               {/* Password Reset Routes - Public */}
+              {/* Safe landing page prevents email prefetchers from consuming tokens */}
+              <Route path="/auth/reset-password" element={<PasswordResetLandingPage />} />
               <Route path="/auth/callback" element={<PasswordResetCallback />} />
               <Route path="/update-password" element={<UpdatePasswordPage />} />
               

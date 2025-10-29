@@ -11,6 +11,7 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Checkbox } from './ui/checkbox';
 import { MemoryMediaViewer } from './MemoryMediaViewer';
+import { DatabaseService } from '../utils/supabase/persistent-database';
 import { 
   Heart, 
   MessageSquare, 
@@ -69,7 +70,8 @@ interface Memory {
   mediaType?: 'photo' | 'video' | 'audio' | 'text';
   mediaUrl?: string;  // Keep for backward compatibility
   files?: {           // ✅ Multi-media support
-    preview: string;
+    preview?: string;  // Demo format
+    url?: string;      // Database format
     type: 'photo' | 'video' | 'audio';
     name: string;
     size?: number;
@@ -252,7 +254,7 @@ export function FamilyWallPage({ user, family, onBack, onNavigate }: FamilyWallP
     };
   };
 
-  const loadMemories = () => {
+  const loadMemories = async () => {
     const familyId = user?.family_id;
     if (!familyId) {
       // Show demo content for users without family data
@@ -263,151 +265,148 @@ export function FamilyWallPage({ user, family, onBack, onNavigate }: FamilyWallP
     const allMemories: Memory[] = [];
     const realMemories: Memory[] = [];
 
-    // 🔄 Load family tree members for fake engagement
+    // 🔄 Load family tree members for fake engagement (database-first)
     let familyMembers: any[] = [];
     try {
-      const treeData = localStorage.getItem(`familyTree_${familyId}`);
-      if (treeData) {
-        const tree = JSON.parse(treeData);
-        familyMembers = Array.isArray(tree) ? tree : tree.people || [];
-      }
+      const treeData = await DatabaseService.getFamilyTree(familyId);
+      familyMembers = Array.isArray(treeData) ? treeData : treeData?.people || [];
     } catch (error) {
-      console.log('Could not load family members for engagement');
+      console.log('Could not load family members for engagement:', error);
     }
 
-    // Load user's memories
+    // ✅ DATABASE-FIRST: Load user's memories from database
     try {
-      const memoriesData = localStorage.getItem(`family:${familyId}:memories`);
-      if (memoriesData) {
-        const rawMemories = JSON.parse(memoriesData);
-        if (rawMemories.length > 0) {
-          rawMemories.forEach((memory: any) => {
-            // 🔒 PRIVACY FILTER: Only show memories that are shared with family
-            // Skip memories that are:
-            // 1. Explicitly marked as private (is_private: true)
-            // 2. Shared only with the user themselves (sharedWith contains only user's name)
-            // 3. Not shared with 'Family' or other family members
-            
-            const isPrivate = memory.is_private === true;
-            const sharedWith = memory.sharedWith || [];
-            const userName = user.display_name || user.name || user.email;
-            
-            // Check if memory is truly shared with family (not just private to self)
-            const isSharedWithFamily = sharedWith.includes('Family');
-            const isSharedWithOthers = sharedWith.some((person: string) => 
-              person !== userName && person !== 'Family'
-            );
-            const isOnlySharedWithSelf = sharedWith.length === 1 && sharedWith[0] === userName;
-            
-            // Skip if private OR only shared with self
-            if (isPrivate || isOnlySharedWithSelf) {
-              console.log(`🔒 Family Wall: Skipping private memory "${memory.title}" (private: ${isPrivate}, self-only: ${isOnlySharedWithSelf})`);
-              return;
-            }
-            
-            // Skip if sharedWith array exists but doesn't include Family or other members
-            if (sharedWith.length > 0 && !isSharedWithFamily && !isSharedWithOthers) {
-              console.log(`🔒 Family Wall: Skipping non-shared memory "${memory.title}" (not shared with family/others)`);
-              return;
-            }
-            
-            const memoryObj: Memory = {
-              id: `memory-${memory.id}`,
-              type: 'memory',
-              userId: memory.uploaded_by || memory.uploadedBy || user.id,
-              userName: memory.uploaded_by_name || user.display_name || 'Family Member',
-              userAvatar: memory.uploaded_by_avatar,
-              userRelationship: memory.uploaded_by_relationship || 'Family',
-              content: memory.caption || memory.description || 'Shared a memory',
-              caption: memory.caption,
-              timestamp: new Date(memory.created_at || memory.createdAt),
-              mediaType: memory.file_type?.includes('video') ? 'video' : memory.file_type?.includes('audio') ? 'audio' : 'photo',
-              mediaUrl: memory.file_url,  // Keep for backward compatibility
-              files: memory.files || [],   // ✅ Load multi-media files array
-              tags: memory.tags || [],
-              location: memory.location,
-              reactions: memory.reactions || { '❤️': 0, '😄': 0, '😢': 0, '🙌': 0 },
-              userReaction: memory.userReaction,
-              comments: memory.comments || [],
-              isPinned: memory.isPinned || false,
-              isFavorite: memory.isFavorite || false,
-              views: memory.views || 0
-            };
-            
-            // 🎭 Add fake engagement from family members
-            // 🔒 Pass sharedWith array to ensure engagement only comes from members with access
-            const memoryWithEngagement = generateFakeEngagement(memoryObj, familyMembers, sharedWith);
-            realMemories.push(memoryWithEngagement);
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error loading memories:', error);
-    }
-
-    // Load journal entries (shared ones)
-    try {
-      const journalData = localStorage.getItem(`journal_entries_${user.id}`);
-      if (journalData) {
-        const journals = JSON.parse(journalData);
-        const userName = user.display_name || user.name || user.email;
-        
-        // 🔒 PRIVACY FILTER: Only show journals that are truly shared with family
-        // Filter out journals that are:
-        // 1. Not shared at all (sharedWith is empty)
-        // 2. Shared only with the user themselves
-        const sharedJournals = journals.filter((entry: any) => {
-          const sharedWith = entry.sharedWith || [];
+      const rawMemories = await DatabaseService.getFamilyMemories(familyId);
+      console.log(`💾 Family Wall: Loaded ${rawMemories.length} memories from database`);
+      
+      if (rawMemories.length > 0) {
+        rawMemories.forEach((memory: any) => {
+          // 🔒 PRIVACY FILTER: Only show memories that are shared with family
+          // Skip memories that are:
+          // 1. Explicitly marked as private (is_private: true)
+          // 2. Shared only with the user themselves (sharedWith contains only user's name)
+          // 3. Not shared with 'Family' or other family members
           
-          if (sharedWith.length === 0) {
-            return false; // Not shared
-          }
+          const isPrivate = memory.is_private === true;
+          const sharedWith = memory.sharedWith || memory.shared_with || [];
+          const userName = user.display_name || user.name || user.email;
           
-          // Check if only shared with self
+          // Check if memory is truly shared with family (not just private to self)
+          const isSharedWithFamily = sharedWith.includes('Family');
+          const isSharedWithOthers = sharedWith.some((person: string) => 
+            person !== userName && person !== 'Family'
+          );
           const isOnlySharedWithSelf = sharedWith.length === 1 && sharedWith[0] === userName;
-          if (isOnlySharedWithSelf) {
-            console.log(`🔒 Family Wall: Skipping self-only journal "${entry.title}"`);
-            return false;
+          
+          // Skip if private OR only shared with self
+          if (isPrivate || isOnlySharedWithSelf) {
+            console.log(`🔒 Family Wall: Skipping private memory "${memory.title}" (private: ${isPrivate}, self-only: ${isOnlySharedWithSelf})`);
+            return;
           }
           
-          return true; // Shared with others
+          // Skip if sharedWith array exists but doesn't include Family or other members
+          if (sharedWith.length > 0 && !isSharedWithFamily && !isSharedWithOthers) {
+            console.log(`🔒 Family Wall: Skipping non-shared memory "${memory.title}" (not shared with family/others)`);
+            return;
+          }
+          
+          const memoryObj: Memory = {
+            id: `memory-${memory.id}`,
+            type: 'memory',
+            userId: memory.uploaded_by || memory.uploadedBy || user.id,
+            userName: memory.uploaded_by_name || user.display_name || 'Family Member',
+            userAvatar: memory.uploaded_by_avatar,
+            userRelationship: memory.uploaded_by_relationship || 'Family',
+            content: memory.caption || memory.description || 'Shared a memory',
+            caption: memory.caption,
+            timestamp: new Date(memory.created_at || memory.createdAt),
+            mediaType: memory.file_type?.includes('video') ? 'video' : memory.file_type?.includes('audio') ? 'audio' : 'photo',
+            mediaUrl: memory.file_url,  // Keep for backward compatibility
+            files: memory.files || [],   // ✅ Load multi-media files array
+            tags: memory.tags || [],
+            location: memory.location,
+            reactions: memory.reactions || { '❤️': 0, '😄': 0, '😢': 0, '🙌': 0 },
+            userReaction: memory.userReaction,
+            comments: memory.comments || [],
+            isPinned: memory.isPinned || false,
+            isFavorite: memory.isFavorite || false,
+            views: memory.views || 0
+          };
+          
+          // 🎭 Add fake engagement from family members
+          // 🔒 Pass sharedWith array to ensure engagement only comes from members with access
+          const memoryWithEngagement = generateFakeEngagement(memoryObj, familyMembers, sharedWith);
+          realMemories.push(memoryWithEngagement);
         });
-        
-        if (sharedJournals.length > 0) {
-          sharedJournals.forEach((entry: any) => {
-            const journalObj: Memory = {
-              id: `journal-${entry.id}`,
-              type: 'journal',
-              userId: entry.createdBy || user.id,
-              userName: user.display_name || user.name || 'You',
-              userAvatar: user.photo,
-              userRelationship: 'You',
-              content: entry.content || entry.title || 'Shared a journal entry',
-              timestamp: new Date(entry.createdAt),
-              mediaType: 'text',
-              tags: entry.tags || [],
-              reactions: entry.reactions || { '❤️': 0, '😄': 0, '😢': 0, '🙌': 0 },
-              comments: entry.comments || [],
-              views: entry.views || 0
-            };
-            
-            // 🎭 Add fake engagement from family members
-            // 🔒 Pass sharedWith array to ensure engagement only comes from members with access
-            const journalWithEngagement = generateFakeEngagement(journalObj, familyMembers, entry.sharedWith);
-            realMemories.push(journalWithEngagement);
-          });
-        }
       }
     } catch (error) {
-      console.error('Error loading journals:', error);
+      console.error('❌ Error loading memories from database:', error);
     }
 
-    // Load milestones
+    // ✅ DATABASE-FIRST: Load journal entries (shared ones)
     try {
-      const coupleJourneyData = localStorage.getItem(`couple_journey_${user.id}`);
-      if (coupleJourneyData) {
-        const milestones = JSON.parse(coupleJourneyData);
-        const completedMilestones = milestones.filter((m: any) => m.isCompleted);
+      const journals = await DatabaseService.getJournalEntries(user.id, familyId);
+      console.log(`💾 Family Wall: Loaded ${journals.length} journal entries from database`);
+      
+      const userName = user.display_name || user.name || user.email;
+      
+      // 🔒 PRIVACY FILTER: Only show journals that are truly shared with family
+      // Filter out journals that are:
+      // 1. Not shared at all (sharedWith is empty)
+      // 2. Shared only with the user themselves
+      const sharedJournals = journals.filter((entry: any) => {
+        const sharedWith = entry.sharedWith || entry.shared_with || [];
+        
+        if (sharedWith.length === 0) {
+          return false; // Not shared
+        }
+        
+        // Check if only shared with self
+        const isOnlySharedWithSelf = sharedWith.length === 1 && sharedWith[0] === userName;
+        if (isOnlySharedWithSelf) {
+          console.log(`🔒 Family Wall: Skipping self-only journal "${entry.title}"`);
+          return false;
+        }
+        
+        return true; // Shared with others
+      });
+      
+      if (sharedJournals.length > 0) {
+        sharedJournals.forEach((entry: any) => {
+          const journalObj: Memory = {
+            id: `journal-${entry.id}`,
+            type: 'journal',
+            userId: entry.createdBy || entry.created_by || user.id,
+            userName: user.display_name || user.name || 'You',
+            userAvatar: user.photo,
+            userRelationship: 'You',
+            content: entry.content || entry.title || 'Shared a journal entry',
+            timestamp: new Date(entry.createdAt || entry.created_at),
+            mediaType: 'text',
+            tags: entry.tags || [],
+            reactions: entry.reactions || { '❤️': 0, '😄': 0, '😢': 0, '🙌': 0 },
+            comments: entry.comments || [],
+            views: entry.views || 0
+          };
+          
+          // 🎭 Add fake engagement from family members
+          // 🔒 Pass sharedWith array to ensure engagement only comes from members with access
+          const sharedWith = entry.sharedWith || entry.shared_with || [];
+          const journalWithEngagement = generateFakeEngagement(journalObj, familyMembers, sharedWith);
+          realMemories.push(journalWithEngagement);
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error loading journals from database:', error);
+    }
+
+    // ✅ DATABASE-FIRST: Load milestones
+    try {
+      const journeyData = await DatabaseService.getJourneyProgress(user.id, 'couple');
+      console.log(`💾 Family Wall: Loaded journey data from database`);
+      
+      if (journeyData?.milestones) {
+        const completedMilestones = journeyData.milestones.filter((m: any) => m.isCompleted || m.is_completed);
         if (completedMilestones.length > 0) {
           completedMilestones.forEach((milestone: any) => {
             const milestoneObj: Memory = {
@@ -419,7 +418,7 @@ export function FamilyWallPage({ user, family, onBack, onNavigate }: FamilyWallP
               userRelationship: 'You',
               content: `${milestone.icon} ${milestone.title}`,
               caption: milestone.description,
-              timestamp: new Date(milestone.completedDate || Date.now()),
+              timestamp: new Date(milestone.completedDate || milestone.completed_date || Date.now()),
               mediaType: 'text',
               tags: ['milestone', 'couple-journey'],
               reactions: milestone.reactions || { '❤️': 0, '😄': 0, '😢': 0, '🙌': 0 },
@@ -435,7 +434,7 @@ export function FamilyWallPage({ user, family, onBack, onNavigate }: FamilyWallP
         }
       }
     } catch (error) {
-      console.error('Error loading milestones:', error);
+      console.error('❌ Error loading milestones from database:', error);
     }
 
     // ✨ NEW BEHAVIOR: Always show demo content, but BELOW real memories
@@ -451,7 +450,7 @@ export function FamilyWallPage({ user, family, onBack, onNavigate }: FamilyWallP
     // Combine: Real memories first, then demo memories
     allMemories.push(...realMemories, ...demoMemories);
 
-    console.log(`✅ Family Wall: Showing ${realMemories.length} real memories + ${demoMemories.length} demo examples`);
+    console.log(`✅ Family Wall: Showing ${realMemories.length} real memories + ${demoMemories.length} demo examples (DATABASE-FIRST)`);
     setMemories(allMemories);
   };
 
@@ -972,10 +971,14 @@ export function FamilyWallPage({ user, family, onBack, onNavigate }: FamilyWallP
   // 🎬 Convert memory files to viewer format
   const convertMemoryFilesToViewer = (memory: Memory) => {
     if (memory.files && memory.files.length > 0) {
-      // Use multi-file format
+      // Use multi-file format - handle both database (url) and demo (preview) formats
       return memory.files.map(f => ({
         ...f,
-        file: { name: f.name, size: 0 } // Add mock file object
+        // 🔧 FIX: Database uses 'url' field, demo uses 'preview' field
+        preview: f.preview || f.url || '',
+        type: f.type || 'photo',
+        name: f.name || 'Media file',
+        file: { name: f.name || 'media', size: 0 } // Add mock file object
       }));
     } else if (memory.mediaUrl) {
       // Fallback to single file format for backward compatibility

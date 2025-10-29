@@ -41,51 +41,78 @@ export function PasswordResetLandingPage() {
     console.log('   Hash:', window.location.hash);
     console.log('   Search params:', location.search);
     
-    // APPROACH 1: Check if we have a redirect parameter (from email)
+    // Parse query parameters for Supabase password recovery token
     const queryParams = new URLSearchParams(location.search);
-    const redirectUrl = queryParams.get('redirect');
+    const codeParam = queryParams.get('code'); // Supabase sends ?code=xxx
+    const tokenParam = queryParams.get('token'); // Fallback for old format
+    const typeParam = queryParams.get('type');
     
-    if (redirectUrl) {
-      // Extract access_token from the confirmation URL
-      console.log('   Redirect URL found:', redirectUrl);
-      const url = new URL(redirectUrl);
-      const hashParams = new URLSearchParams(url.hash.substring(1));
-      const accessToken = hashParams.get('access_token');
-      const typeParam = hashParams.get('type');
-      
-      console.log('   Parsed from redirect:', {
-        access_token: accessToken ? 'PRESENT' : 'MISSING',
-        type: typeParam
-      });
-      
-      if (accessToken && typeParam === 'recovery') {
-        setToken(accessToken);
-        console.log('✅ Password reset token extracted from redirect URL');
-        return;
-      }
-    }
-    
-    // APPROACH 2: Check for direct hash fragment (if Supabase redirected here)
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const accessToken = hashParams.get('access_token');
-    const typeParam = hashParams.get('type');
-    
-    console.log('   Parsed Hash Params:', {
-      access_token: accessToken ? 'PRESENT' : 'MISSING',
+    console.log('   Parsed Query Params:', {
+      code: codeParam ? 'PRESENT' : 'MISSING',
+      token: tokenParam ? 'PRESENT' : 'MISSING',
       type: typeParam
     });
     
-    if (accessToken && typeParam === 'recovery') {
+    // Use code or token (code is preferred for Supabase v2)
+    const recoveryToken = codeParam || tokenParam;
+    
+    // APPROACH 1: Check for query parameter token (?code=xxx or ?token=xxx)
+    if (recoveryToken && typeParam === 'recovery') {
       // Store token in memory (NOT calling verify yet)
       // This prevents email prefetchers from consuming it
+      setToken(recoveryToken);
+      console.log('✅ Password reset token detected in query params (not verified yet)');
+      return;
+    }
+    
+    // APPROACH 2: Check for hash fragment (if Supabase used old format)
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = hashParams.get('access_token');
+    const hashType = hashParams.get('type');
+    
+    console.log('   Parsed Hash Params:', {
+      access_token: accessToken ? 'PRESENT' : 'MISSING',
+      type: hashType
+    });
+    
+    if (accessToken && hashType === 'recovery') {
       setToken(accessToken);
-      console.log('✅ Password reset token detected and stored (not verified yet)');
-    } else if (!accessToken && !redirectUrl) {
+      console.log('✅ Password reset token detected in hash fragment (not verified yet)');
+      return;
+    }
+    
+    // APPROACH 3: Check if we have a redirect parameter (from custom email template)
+    const redirectUrl = queryParams.get('redirect');
+    if (redirectUrl) {
+      try {
+        console.log('   Redirect URL found:', redirectUrl);
+        const url = new URL(redirectUrl);
+        const redirectHashParams = new URLSearchParams(url.hash.substring(1));
+        const redirectAccessToken = redirectHashParams.get('access_token');
+        const redirectType = redirectHashParams.get('type');
+        
+        console.log('   Parsed from redirect:', {
+          access_token: redirectAccessToken ? 'PRESENT' : 'MISSING',
+          type: redirectType
+        });
+        
+        if (redirectAccessToken && redirectType === 'recovery') {
+          setToken(redirectAccessToken);
+          console.log('✅ Password reset token extracted from redirect URL');
+          return;
+        }
+      } catch (e) {
+        console.error('❌ Error parsing redirect URL:', e);
+      }
+    }
+    
+    // NO TOKEN FOUND
+    if (!recoveryToken && !accessToken && !redirectUrl) {
       setError('No password reset token found in URL. Please use the link from your email.');
-      console.error('❌ No access_token found in hash fragment or redirect parameter');
-    } else if (typeParam && typeParam !== 'recovery') {
-      setError(`Invalid token type: ${typeParam}. Expected 'recovery'.`);
-      console.error('❌ Invalid token type:', typeParam);
+      console.error('❌ No token found in query params, hash, or redirect');
+    } else if (typeParam && typeParam !== 'recovery' && hashType && hashType !== 'recovery') {
+      setError(`Invalid token type. Expected 'recovery'.`);
+      console.error('❌ Invalid token type');
     }
   }, [location]);
 
@@ -103,11 +130,11 @@ export function PasswordResetLandingPage() {
       
       const supabase = getSupabaseClient();
       
-      // Set the session using the access token from the hash
-      // This consumes the token and creates an authenticated session
-      const { data, error: verifyError } = await supabase.auth.setSession({
-        access_token: token,
-        refresh_token: '' // Not needed for password recovery
+      // Verify the OTP/recovery token and exchange it for a session
+      // This uses Supabase's verifyOtp for password recovery flow
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        token_hash: token,
+        type: 'recovery'
       });
 
       if (verifyError) {
@@ -121,11 +148,14 @@ export function PasswordResetLandingPage() {
         } else {
           setError(`Verification failed: ${verifyError.message}. Please request a new link below.`);
         }
+        setShowResendForm(true);
         return;
       }
 
       if (data?.session) {
         console.log('✅ Token verified successfully! Session created.');
+        console.log('   Session user ID:', data.session.user.id);
+        console.log('   Session expires:', data.session.expires_at);
         toast.success('Password reset link verified! Set your new password.');
         
         // Redirect to password update page
@@ -133,10 +163,12 @@ export function PasswordResetLandingPage() {
       } else {
         console.error('❌ No session created after verification');
         setError('Verification succeeded but no session was created. Please try requesting a new reset link.');
+        setShowResendForm(true);
       }
     } catch (err: any) {
       console.error('❌ Verification error:', err);
       setError(`An unexpected error occurred: ${err.message}. Please try again.`);
+      setShowResendForm(true);
     } finally {
       setIsVerifying(false);
     }

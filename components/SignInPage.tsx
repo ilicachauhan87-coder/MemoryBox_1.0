@@ -7,9 +7,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Alert, AlertDescription } from './ui/alert';
 import { Separator } from './ui/separator';
-import { ArrowLeft, Mail, Phone, Eye, EyeOff, Sparkles, Shield, Clock, CheckCircle, AlertCircle, Heart, TreePine, UserPlus } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
+import { ArrowLeft, Mail, Phone, Eye, EyeOff, Sparkles, Shield, Clock, CheckCircle, AlertCircle, Heart, TreePine, UserPlus, Loader2 } from 'lucide-react';
 import { projectId } from '../utils/supabase/info';
 import { getSupabaseClient } from '../utils/supabase/client';
+import { toast } from 'sonner@2.0.3';
 
 interface SignInPageProps {
   onSignIn: (userData?: any) => void;
@@ -26,6 +28,12 @@ export function SignInPage({ onSignIn, onBack, mode = 'signup' }: SignInPageProp
   const [success, setSuccess] = useState<string>('');
   const [otpSent, setOtpSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  
+  // Password reset state
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
 
   // Email form state
   const [emailForm, setEmailForm] = useState({
@@ -132,6 +140,63 @@ export function SignInPage({ onSignIn, onBack, mode = 'signup' }: SignInPageProp
       }
     }
     return null;
+  };
+
+  // Handle forgot password
+  const handleForgotPassword = async () => {
+    if (!resetEmail) {
+      setError('Please enter your email address');
+      return;
+    }
+    
+    if (!resetEmail.includes('@')) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    setIsResetting(true);
+    setError('');
+
+    try {
+      const supabase = getSupabaseClient();
+      
+      // Detect environment for redirect URL
+      const isProduction = window.location.hostname !== 'localhost' && 
+                          !window.location.hostname.includes('127.0.0.1') &&
+                          !window.location.hostname.includes('figma');
+      
+      const redirectUrl = isProduction 
+        ? `${window.location.origin}/auth/callback` // Production URL
+        : `http://localhost:3000/auth/callback`; // Local dev URL
+      
+      console.log('🔐 Sending password reset email to:', resetEmail);
+      console.log('🔗 Redirect URL:', redirectUrl);
+
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: redirectUrl
+      });
+
+      if (resetError) {
+        throw resetError;
+      }
+
+      console.log('✅ Password reset email sent successfully');
+      setResetSuccess(true);
+      toast.success('Password reset email sent! Check your inbox.');
+      
+      // Close dialog after 3 seconds
+      setTimeout(() => {
+        setShowForgotPassword(false);
+        setResetSuccess(false);
+        setResetEmail('');
+      }, 3000);
+
+    } catch (err: any) {
+      console.error('❌ Password reset error:', err);
+      setError(err.message || 'Failed to send reset email. Please try again.');
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   // Handle email authentication
@@ -845,6 +910,23 @@ export function SignInPage({ onSignIn, onBack, mode = 'signup' }: SignInPageProp
                   </div>
                 </div>
 
+                {/* Forgot Password Link (Sign In only) */}
+                {!isSignUp && (
+                  <div className="text-right">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowForgotPassword(true);
+                        setResetEmail(emailForm.email); // Pre-fill with current email
+                        setError('');
+                      }}
+                      className="text-sm text-violet hover:text-violet/80 underline"
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
+                )}
+
                 {isSignUp && (
                   <div className="space-y-2">
                     <Label htmlFor="confirmPassword">Confirm Password</Label>
@@ -1110,6 +1192,93 @@ export function SignInPage({ onSignIn, onBack, mode = 'signup' }: SignInPageProp
           </Badge>
         </div>
       </div>
+
+      {/* Forgot Password Dialog */}
+      <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Reset Password</DialogTitle>
+            <DialogDescription>
+              Enter your email address and we'll send you a link to reset your password
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {resetSuccess && (
+              <Alert className="bg-aqua/10 border-aqua">
+                <CheckCircle className="h-4 w-4 text-aqua" />
+                <AlertDescription className="text-ink">
+                  Password reset email sent! Check your inbox for the reset link.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {!resetSuccess && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="resetEmail">Email Address</Label>
+                  <Input
+                    id="resetEmail"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleForgotPassword();
+                      }
+                    }}
+                    className="h-12"
+                    disabled={isResetting}
+                    autoComplete="email"
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowForgotPassword(false);
+                      setResetEmail('');
+                      setError('');
+                    }}
+                    className="flex-1"
+                    disabled={isResetting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleForgotPassword}
+                    disabled={isResetting || !resetEmail}
+                    className="flex-1 bg-violet hover:bg-violet/90 text-white"
+                  >
+                    {isResetting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      'Send Reset Link'
+                    )}
+                  </Button>
+                </div>
+
+                <p className="text-xs text-muted-foreground text-center">
+                  The reset link will be valid for 1 hour. Check your spam folder if you don't see the email.
+                </p>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

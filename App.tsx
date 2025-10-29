@@ -413,7 +413,7 @@ const SignInWrapper = ({ mode }: { mode: 'signup' | 'signin' }) => {
       navigate('/onboarding');
     } else {
       // User has completed onboarding - use smart routing
-      const homeRoute = getHomeRoute();
+      const homeRoute = await getHomeRoute(); // ✅ FIX: Added await for async function
       console.log('👤 User HAS completed onboarding → smart routing');
       console.log('   getHomeRoute() returned:', homeRoute);
       console.log('   This checks graduation criteria (5+ memories + nuclear family)');

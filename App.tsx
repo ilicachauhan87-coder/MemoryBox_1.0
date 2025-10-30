@@ -240,7 +240,7 @@ const RoutePlaceholder = ({ routeName }: { routeName: string }) => {
       'invite-family-member': '/invite',
       'time-capsules': '/capsules'
     };
-    navigate(pageRoutes[page] || getHomeRoute());
+    navigate(pageRoutes[page] || homeRoute); // ✅ FIX: Use homeRoute instead of calling getHomeRoute() again
   };
   
   return (
@@ -474,7 +474,7 @@ const OnboardingPageWrapper = () => {
         // ✅ FIX: If onboarding already completed, use smart routing
         if (normalizedUser.onboarding_completed) {
           console.log('⏩ Onboarding already completed (from database), using smart routing');
-          const homeRoute = getHomeRoute();
+          const homeRoute = await getHomeRoute(); // ✅ FIX: Added await
           console.log('   getHomeRoute() returned:', homeRoute);
           navigate(homeRoute);
         }
@@ -1496,8 +1496,9 @@ const FamilyTreeWrapper = () => {
     navigate(route);
   };
 
-  const handleBack = () => {
-    navigate(getHomeRoute());
+  const handleBack = async () => {
+    const homeRoute = await getHomeRoute(); // ✅ FIX: Added await
+    navigate(homeRoute);
   };
 
   // 🔧 CRITICAL FIX: Add error state UI
@@ -1759,7 +1760,7 @@ const MemoryUploadPageWrapper = () => {
     setCurrentPage(routeToPage[location.pathname] || 'upload-memory');
   }, [location]);
 
-  const handleNavigate = (page: string) => {
+  const handleNavigate = async (page: string) => {
     console.log(`📍 MemoryUploadPageWrapper - Navigation request to: ${page}`);
     
     // Help is handled via dialog on home pages, not a route
@@ -1768,9 +1769,12 @@ const MemoryUploadPageWrapper = () => {
       return;
     }
     
+    // ✅ FIX: getHomeRoute is async, must await it
+    const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
+    
     // Map page names to routes
     const pageRoutes: { [key: string]: string } = {
-      'home': getHomeRoute(),
+      'home': homeRoute,
       'vault': '/vault',
       'upload-memory': '/upload',
       'family-tree': '/tree',
@@ -1788,8 +1792,9 @@ const MemoryUploadPageWrapper = () => {
     navigate(route);
   };
 
-  const handleBack = () => {
-    navigate(getHomeRoute());
+  const handleBack = async () => {
+    const homeRoute = await getHomeRoute(); // ✅ FIX: Added await
+    navigate(homeRoute);
   };
 
   const handleSuccess = async () => {
@@ -2013,7 +2018,7 @@ const VaultPageWrapper = () => {
     setCurrentPage(routeToPage[location.pathname] || 'vault');
   }, [location]);
 
-  const handleNavigate = (page: string) => {
+  const handleNavigate = async (page: string) => {
     console.log(`📍 VaultPageWrapper - Navigation request to: ${page}`);
     
     // Help is handled via dialog on home pages, not a route
@@ -2022,9 +2027,12 @@ const VaultPageWrapper = () => {
       return;
     }
     
+    // ✅ FIX: getHomeRoute is async, must await it
+    const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
+    
     // Map page names to routes
     const pageRoutes: { [key: string]: string } = {
-      'home': getHomeRoute(),
+      'home': homeRoute,
       'vault': '/vault',
       'upload-memory': '/upload',
       'family-tree': '/tree',
@@ -2186,7 +2194,7 @@ const ReturningUserHomeWrapper = () => {
     setCurrentPage(routeToPage[location.pathname] || 'home');
   }, [location]);
 
-  const handleNavigate = (page: string) => {
+  const handleNavigate = async (page: string) => {
     console.log(`📍 ReturningUserHomeWrapper - Navigation request to: ${page}`);
     
     // Help is handled via dialog on home pages, not a route
@@ -2195,9 +2203,12 @@ const ReturningUserHomeWrapper = () => {
       return;
     }
     
+    // ✅ FIX: getHomeRoute is async, must await it
+    const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
+    
     // Map page names to routes
     const pageRoutes: { [key: string]: string } = {
-      'home': getHomeRoute(),
+      'home': homeRoute,
       'vault': '/vault',
       'upload-memory': '/upload',
       'family-tree': '/tree',
@@ -2209,7 +2220,7 @@ const ReturningUserHomeWrapper = () => {
       'time-capsules': '/capsules'
     };
 
-    const route = pageRoutes[page] || getHomeRoute();
+    const route = pageRoutes[page] || homeRoute;
     console.log(`📍 Navigating to route: ${route}`);
     navigate(route);
   };
@@ -2279,11 +2290,14 @@ const JourneySelectionWrapper = () => {
     }
   }, []);
 
-  const handleNavigate = (page: string, journeyType?: string) => {
+  const handleNavigate = async (page: string, journeyType?: string) => {
     console.log(`📍 JourneySelectionWrapper - Navigation request to: ${page}`, journeyType);
     
+    // ✅ FIX: getHomeRoute is async, must await it
+    const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
+    
     const pageRoutes: { [key: string]: string } = {
-      'home': getHomeRoute(),
+      'home': homeRoute,
       'vault': '/vault',
       'upload-memory': '/upload',
       'family-tree': '/tree',
@@ -2387,7 +2401,7 @@ const CoupleJourneyWrapper = () => {
     setCurrentPage(routeToPage[location.pathname] || 'journey-selection');
   }, [location]);
 
-  const handleNavigate = (page: string) => {
+  const handleNavigate = async (page: string) => {
     console.log(`📍 CoupleJourneyWrapper - Navigation request to: ${page}`);
     
     // Help is handled via dialog on home pages, not a route
@@ -2396,8 +2410,11 @@ const CoupleJourneyWrapper = () => {
       return;
     }
     
+    // ✅ FIX: getHomeRoute is async, must await it
+    const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
+    
     const pageRoutes: { [key: string]: string } = {
-      'home': getHomeRoute(),
+      'home': homeRoute,
       'vault': '/vault',
       'upload-memory': '/upload',
       'family-tree': '/tree',
@@ -2490,7 +2507,7 @@ const PregnancyJourneyWrapper = () => {
     setCurrentPage(routeToPage[location.pathname] || 'journey-selection');
   }, [location]);
 
-  const handleNavigate = (page: string) => {
+  const handleNavigate = async (page: string) => {
     console.log(`📍 PregnancyJourneyWrapper - Navigation request to: ${page}`);
     
     // Help is handled via dialog on home pages, not a route
@@ -2499,8 +2516,11 @@ const PregnancyJourneyWrapper = () => {
       return;
     }
     
+    // ✅ FIX: getHomeRoute is async, must await it
+    const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
+    
     const pageRoutes: { [key: string]: string } = {
-      'home': getHomeRoute(),
+      'home': homeRoute,
       'vault': '/vault',
       'upload-memory': '/upload',
       'family-tree': '/tree',
@@ -2642,7 +2662,7 @@ const JournalPageWrapper = () => {
     setCurrentPage(routeToPage[location.pathname] || 'journal');
   }, [location]);
 
-  const handleNavigate = (page: string) => {
+  const handleNavigate = async (page: string) => {
     console.log(`📍 JournalPageWrapper - Navigation request to: ${page}`);
     
     // Help is handled via dialog on home pages, not a route
@@ -2651,9 +2671,12 @@ const JournalPageWrapper = () => {
       return;
     }
     
+    // ✅ FIX: getHomeRoute is async, must await it
+    const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
+    
     // Map page names to routes
     const pageRoutes: { [key: string]: string } = {
-      'home': getHomeRoute(),
+      'home': homeRoute,
       'vault': '/vault',
       'upload-memory': '/upload',
       'family-tree': '/tree',
@@ -2758,7 +2781,7 @@ const InviteFamilyMemberPageWrapper = () => {
     setCurrentPage(routeToPage[location.pathname] || 'invite-family-member');
   }, [location]);
 
-  const handleNavigate = (page: string) => {
+  const handleNavigate = async (page: string) => {
     console.log(`📍 InviteFamilyMemberPageWrapper - Navigation request to: ${page}`);
     
     // Help is handled via dialog on home pages, not a route
@@ -2767,9 +2790,12 @@ const InviteFamilyMemberPageWrapper = () => {
       return;
     }
     
+    // ✅ FIX: getHomeRoute is async, must await it
+    const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
+    
     // Map page names to routes
     const pageRoutes: { [key: string]: string } = {
-      'home': getHomeRoute(),
+      'home': homeRoute,
       'vault': '/vault',
       'upload-memory': '/upload',
       'family-tree': '/tree',
@@ -2808,7 +2834,8 @@ const InviteFamilyMemberPageWrapper = () => {
     }
     
     toast.success('🎉 Invitations sent to your family members!');
-    navigate(getHomeRoute()); // Navigate to appropriate home after success
+    const homeRoute = await getHomeRoute(); // ✅ FIX: Added await
+    navigate(homeRoute); // Navigate to appropriate home after success
   };
 
   const [user, setUser] = useState<any>(null);
@@ -2929,7 +2956,7 @@ const TimeCapsulesPageWrapper = () => {
     setCurrentPage(routeToPage[location.pathname] || 'time-capsules');
   }, [location]);
 
-  const handleNavigate = (page: string) => {
+  const handleNavigate = async (page: string) => {
     console.log(`📍 TimeCapsulesPageWrapper - Navigation request to: ${page}`);
     
     // Help is handled via dialog on home pages, not a route
@@ -2938,9 +2965,12 @@ const TimeCapsulesPageWrapper = () => {
       return;
     }
     
+    // ✅ FIX: getHomeRoute is async, must await it
+    const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
+    
     // Map page names to routes
     const pageRoutes: { [key: string]: string } = {
-      'home': getHomeRoute(),
+      'home': homeRoute,
       'vault': '/vault',
       'upload-memory': '/upload',
       'family-tree': '/tree',
@@ -3046,7 +3076,7 @@ const FamilyWallPageWrapper = () => {
     setCurrentPage(routeToPage[location.pathname] || 'family-wall');
   }, [location]);
 
-  const handleNavigate = (page: string) => {
+  const handleNavigate = async (page: string) => {
     console.log(`📍 FamilyWallPageWrapper - Navigation request to: ${page}`);
     
     if (page === 'help') {
@@ -3054,8 +3084,11 @@ const FamilyWallPageWrapper = () => {
       return;
     }
     
+    // ✅ FIX: getHomeRoute is async, must await it
+    const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
+    
     const pageRoutes: { [key: string]: string } = {
-      'home': getHomeRoute(),
+      'home': homeRoute,
       'vault': '/vault',
       'upload-memory': '/upload',
       'family-tree': '/tree',
@@ -3073,8 +3106,9 @@ const FamilyWallPageWrapper = () => {
     navigate(route);
   };
 
-  const handleBack = () => {
-    navigate(getHomeRoute());
+  const handleBack = async () => {
+    const homeRoute = await getHomeRoute(); // ✅ FIX: Added await
+    navigate(homeRoute);
   };
 
   return (
@@ -3144,7 +3178,7 @@ const ProfilePageWrapper = () => {
     setCurrentPage(routeToPage[location.pathname] || 'profile');
   }, [location]);
 
-  const handleNavigate = (page: string) => {
+  const handleNavigate = async (page: string) => {
     console.log(`📍 ProfilePageWrapper - Navigation request to: ${page}`);
     
     // Help is handled via dialog on home pages, not a route
@@ -3153,9 +3187,12 @@ const ProfilePageWrapper = () => {
       return;
     }
     
+    // ✅ FIX: getHomeRoute is async, must await it
+    const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
+    
     // Map page names to routes
     const pageRoutes: { [key: string]: string } = {
-      'home': getHomeRoute(),
+      'home': homeRoute,
       'vault': '/vault',
       'upload-memory': '/upload',
       'family-tree': '/tree',

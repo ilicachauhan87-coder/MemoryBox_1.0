@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -21,6 +21,7 @@ import {
   Crown,
   Baby
 } from 'lucide-react';
+import { DatabaseService } from '../utils/supabase/persistent-database';
 
 interface FamilyMember {
   id: string;
@@ -42,57 +43,86 @@ export function InviteFamilyMemberPage({ onBack, onSuccess }: InviteFamilyMember
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [step, setStep] = useState<'select' | 'invite'>('select');
+  const [allFamilyMembers, setAllFamilyMembers] = useState<FamilyMember[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserName, setCurrentUserName] = useState<string>('Your Family Member');
 
-  // Complete family tree data - all members from the app
-  const allFamilyMembers: FamilyMember[] = [
-    // Current user's generation (0)
-    { id: 'ilica-chauhan', name: 'Ilica Chauhan', avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b77c?w=100&h=100&fit=crop&crop=face', relationship: 'You', generation: 0, isOnApp: true },
-    { id: 'priyam-alok', name: 'Priyam Alok', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face', relationship: 'Husband', generation: 0, isOnApp: true },
-    { id: 'ishan-chauhan', name: 'Ishan Chauhan', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face', relationship: 'Brother', generation: 0, isOnApp: true },
-    
-    // Parents generation (+1)
-    { id: 'rajeev-chauhan', name: 'Rajeev Kumar Chauhan', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face', relationship: 'Father', generation: 1, isOnApp: true, phoneNumber: '+91 98765 43210', email: 'rajeev.chauhan@email.com' },
-    { id: 'priti-chauhan', name: 'Priti Chauhan', avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b77c?w=100&h=100&fit=crop&crop=face', relationship: 'Mother', generation: 1, isOnApp: true, phoneNumber: '+91 98765 43211', email: 'priti.chauhan@email.com' },
-    { id: 'sanjeev-kumar', name: 'Sanjeev Kumar', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face', relationship: 'Father-in-law', generation: 1, isOnApp: false, phoneNumber: '+91 98765 43212', email: 'sanjeev.kumar@email.com' },
-    { id: 'sudha-chauhan', name: 'Sudha Chauhan', avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b77c?w=100&h=100&fit=crop&crop=face', relationship: 'Mother-in-law', generation: 1, isOnApp: false, phoneNumber: '+91 98765 43213', email: 'sudha.chauhan@email.com' },
-    
-    // Children generation (-1)
-    { id: 'miraya-chauhan-sinha', name: 'Miraya Chauhan Sinha', avatar: 'https://images.unsplash.com/photo-1544717297-fa95b6ee9643?w=100&h=100&fit=crop&crop=face', relationship: 'Daughter', generation: -1, isOnApp: false, phoneNumber: '+91 98765 43214', email: 'miraya@email.com' },
-    
-    // Grandparents generation (+2)
-    { id: 'ajai-singh', name: 'Shri Ajai Singh', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face', relationship: 'Maternal Grandfather (Nanaji)', generation: 2, isOnApp: false, phoneNumber: '+91 98765 43215', email: 'ajai.singh@email.com' },
-    { id: 'urmila-devi', name: 'Shrimati Urmila Devi', avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b77c?w=100&h=100&fit=crop&crop=face', relationship: 'Maternal Grandmother (Naniji)', generation: 2, isOnApp: false, phoneNumber: '+91 98765 43216', email: 'urmila.devi@email.com' },
-    { id: 'yeshpal-singh', name: 'Shri Yeshpal Singh', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face', relationship: 'Paternal Grandfather (Dadaji)', generation: 2, isOnApp: false, phoneNumber: '+91 98765 43217', email: 'yeshpal.singh@email.com' },
-    { id: 'rohitash-devi', name: 'Shrimati Rohitash Devi', avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b77c?w=100&h=100&fit=crop&crop=face', relationship: 'Paternal Grandmother (Dadiji)', generation: 2, isOnApp: false, phoneNumber: '+91 98765 43218', email: 'rohitash.devi@email.com' },
-    
-    // Extended family
-    { id: 'usha-verma', name: 'Shrimati Usha Verma', avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b77c?w=100&h=100&fit=crop&crop=face', relationship: 'Maternal Aunt (Mausi)', generation: 1, isOnApp: false, phoneNumber: '+91 98765 43219', email: 'usha.verma@email.com' },
-    { id: 'jitendra-verma', name: 'Dr Jitendra Verma', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face', relationship: 'Maternal Uncle (Mausaji)', generation: 1, isOnApp: false, phoneNumber: '+91 98765 43220', email: 'jitendra.verma@email.com' },
-    { id: 'pradeep-kumar', name: 'Pradeep Kumar', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face', relationship: 'Paternal Uncle (Chacha)', generation: 1, isOnApp: false, phoneNumber: '+91 98765 43221', email: 'pradeep.kumar@email.com' },
-    { id: 'ajay-kumar', name: 'Ajay Kumar', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face', relationship: 'Paternal Uncle (Tau)', generation: 1, isOnApp: false, phoneNumber: '+91 98765 43222', email: 'ajay.kumar@email.com' },
-    { id: 'sanjay-kumar', name: 'Sanjay Kumar', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face', relationship: 'Maternal Uncle (Mama)', generation: 1, isOnApp: false, phoneNumber: '+91 98765 43223', email: 'sanjay.kumar@email.com' },
-    { id: 'seema-chaudhary', name: 'Seema Chaudhary', avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b77c?w=100&h=100&fit=crop&crop=face', relationship: 'Sister-in-law', generation: 0, isOnApp: false, phoneNumber: '+91 98765 43224', email: 'seema.chaudhary@email.com' },
-    
-    // Cousins and extended family same generation
-    { id: 'somya-chauhan', name: 'Somya Chauhan', avatar: 'https://images.unsplash.com/photo-1544717297-fa95b6ee9643?w=100&h=100&fit=crop&crop=face', relationship: 'Cousin Sister', generation: 0, isOnApp: false, phoneNumber: '+91 98765 43225', email: 'somya.chauhan@email.com' },
-    { id: 'shivam-verma', name: 'Shivam Verma', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face', relationship: 'Cousin Brother', generation: 0, isOnApp: false, phoneNumber: '+91 98765 43226', email: 'shivam.verma@email.com' },
-    { id: 'shivani-bobo', name: 'Shivani Bobo', avatar: 'https://images.unsplash.com/photo-1544717297-fa95b6ee9643?w=100&h=100&fit=crop&crop=face', relationship: 'Cousin Sister', generation: 0, isOnApp: false, phoneNumber: '+91 98765 43227', email: 'shivani.bobo@email.com' },
-    { id: 'praneet-asthana', name: 'Praneet Asthana', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face', relationship: 'Cousin Brother', generation: 0, isOnApp: false, phoneNumber: '+91 98765 43228', email: 'praneet.asthana@email.com' },
-    
-    // Next generation (-1)
-    { id: 'viraj-chaudhary', name: 'Viraj Chaudhary', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face', relationship: 'Nephew', generation: -1, isOnApp: false, phoneNumber: '+91 98765 43229', email: 'viraj.chaudhary@email.com' },
-    { id: 'aastha-chaudhary', name: 'Aastha Chaudhary', avatar: 'https://images.unsplash.com/photo-1544717297-fa95b6ee9643?w=100&h=100&fit=crop&crop=face', relationship: 'Niece', generation: -1, isOnApp: false, phoneNumber: '+91 98765 43230', email: 'aastha.chaudhary@email.com' },
-    { id: 'samaira-singh', name: 'Samaira Singh', avatar: 'https://images.unsplash.com/photo-1544717297-fa95b6ee9643?w=100&h=100&fit=crop&crop=face', relationship: 'Niece', generation: -1, isOnApp: false, phoneNumber: '+91 98765 43231', email: 'samaira.singh@email.com' },
-    { id: 'kushagra-zulmi-jat', name: 'Kushagra Zulmi Jat', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face', relationship: 'Nephew', generation: -1, isOnApp: false, phoneNumber: '+91 98765 43232', email: 'kushagra.jat@email.com' },
-    
-    // Pets
-    { id: 'gattu-chauhan', name: 'Gattu Chauhan (Parrot)', avatar: 'https://images.unsplash.com/photo-1552728089-57bdde30beb3?w=100&h=100&fit=crop', relationship: 'Pet', generation: 0, isOnApp: false },
-    { id: 'hari', name: 'Hari', avatar: 'https://images.unsplash.com/photo-1552728089-57bdde30beb3?w=100&h=100&fit=crop', relationship: 'Pet', generation: 0, isOnApp: false },
-  ];
+  // Load family members from database
+  useEffect(() => {
+    const loadFamilyMembers = async () => {
+      try {
+        setIsLoading(true);
+
+        // Get current user ID
+        const userId = localStorage.getItem('current_user_id');
+        if (!userId) {
+          console.error('❌ No current user ID found');
+          setIsLoading(false);
+          return;
+        }
+
+        setCurrentUserId(userId);
+
+        // Get user profile to find familyId
+        const userProfile = localStorage.getItem(`user:${userId}:profile`);
+        if (!userProfile) {
+          console.error('❌ No user profile found');
+          setIsLoading(false);
+          return;
+        }
+
+        const userData = JSON.parse(userProfile);
+        const familyId = userData.familyId || userData.family_id || userId;
+        
+        // Set current user's name for personalized invites
+        const userName = userData.name || userData.firstName || 'Your Family Member';
+        setCurrentUserName(userName);
+
+        console.log('🔍 Loading family tree for invite page:', { userId, familyId, userName });
+
+        // Load family tree from database
+        const treeData = await DatabaseService.getFamilyTree(familyId);
+        
+        if (!treeData) {
+          console.log('⚠️ No tree data found');
+          setAllFamilyMembers([]);
+          setIsLoading(false);
+          return;
+        }
+
+        // Extract people from tree data (handle both array and object formats)
+        const people = Array.isArray(treeData) ? treeData : treeData.people || [];
+        
+        console.log('✅ Family tree loaded:', { peopleCount: people.length });
+
+        // Transform tree people to FamilyMember format
+        const members: FamilyMember[] = people.map((person: any) => ({
+          id: person.id,
+          name: person.name || `${person.firstName || ''} ${person.lastName || ''}`.trim() || 'Unknown',
+          avatar: person.photo || person.photoUrl || '', // ✅ Only show user-uploaded photos, no demo images
+          relationship: person.relationship || person.relationshipToUser || 'Family',
+          generation: person.generation || 0,
+          isOnApp: person.isOnApp || false,
+          phoneNumber: person.phone || person.phoneNumber,
+          email: person.email
+        }));
+
+        setAllFamilyMembers(members);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('❌ Error loading family members:', error);
+        setAllFamilyMembers([]);
+        setIsLoading(false);
+      }
+    };
+
+    loadFamilyMembers();
+  }, []);
 
   // Filter out current user and those already on app, plus pets for invitations
   const invitableMembers = allFamilyMembers.filter(member => 
-    member.id !== 'ilica-chauhan' && 
+    member.id !== currentUserId && 
     !member.isOnApp && 
     member.relationship !== 'Pet' &&
     member.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -128,7 +158,7 @@ export function InviteFamilyMemberPage({ onBack, onSuccess }: InviteFamilyMember
 
   const handleInvite = (method: 'whatsapp' | 'email' | 'sms') => {
     const memberNames = selectedMemberDetails.map(m => m.name).join(', ');
-    const inviteMessage = `Hi! 👋\n\nI've been building our family's digital sanctuary on MemoryBox - a special space where we can preserve and share our precious memories together.\n\nJoin us to:\n✨ View family photos and videos\n🎙️ Listen to voice messages from loved ones\n📝 Write private journal entries with mood tracking\n🌳 Connect with our family tree\n💑 Track Life Journeys (couple milestones, pregnancy, etc.)\n⏰ Create time capsules for future memories\n📱 Share memories with chosen family members\n\nDownload MemoryBox and join our family!\n\nWith love,\nIlica ❤️`;
+    const inviteMessage = `Hi! 👋\n\nI've been building our family's digital sanctuary on MemoryBox - a special space where we can preserve and share our precious memories together.\n\nJoin us to:\n✨ View family photos and videos\n🎙️ Listen to voice messages from loved ones\n📝 Write private journal entries with mood tracking\n🌳 Connect with our family tree\n💑 Track Life Journeys (couple milestones, pregnancy, etc.)\n⏰ Create time capsules for future memories\n📱 Share memories with chosen family members\n\nDownload MemoryBox and join our family!\n\nWith love,\n${currentUserName} ❤️`;
     
     switch (method) {
       case 'whatsapp':
@@ -307,12 +337,17 @@ export function InviteFamilyMemberPage({ onBack, onSuccess }: InviteFamilyMember
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 sm:space-y-3">
-            {invitableMembers.length === 0 ? (
+            {isLoading ? (
+              <div className="text-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-primary mb-4"></div>
+                  <p className="text-sm sm:text-base text-muted-foreground">Loading family members...</p>
+              </div>
+            ) : invitableMembers.length === 0 ? (
               <div className="text-center py-8">
-                <Users className="w-10 h-10 sm:w-12 sm:h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-sm sm:text-base text-muted-foreground px-4">
-                  {searchQuery ? 'No family members found matching your search.' : 'All your family members are already on the app! 🎉'}
-                </p>
+                  <Users className="w-10 h-10 sm:w-12 sm:h-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-sm sm:text-base text-muted-foreground px-4">
+                    {searchQuery ? 'No family members found matching your search.' : allFamilyMembers.length === 0 ? 'Add family members to your tree first to invite them!' : 'All your family members are already on the app! 🎉'}
+                  </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-2 sm:gap-3">

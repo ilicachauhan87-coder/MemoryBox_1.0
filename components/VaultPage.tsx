@@ -56,7 +56,6 @@ import { toast } from 'sonner@2.0.3';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import { DatabaseService } from '../utils/supabase/persistent-database';
 import { MemoryMediaViewer } from './MemoryMediaViewer';
-import { formatDateForDisplay } from '../utils/dateHelpers';
 
 interface VaultPageProps {
   user: UserProfile | null;
@@ -1258,14 +1257,21 @@ export const VaultPage: React.FC<VaultPageProps> = ({ user, family, onNavigate }
                   }}
                 >
                   <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-start space-x-2 flex-1 min-w-0">
-                        <div className={`p-2 rounded-lg ${memoryType.iconBg} flex-shrink-0`}>
-                          <memoryType.icon className="w-4 h-4 text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <CardTitle className="text-lg truncate max-w-full">{memory.title}</CardTitle>
+                    <div className="flex items-start space-x-2">
+                      <div className={`p-2 rounded-lg ${memoryType.iconBg} flex-shrink-0`}>
+                        <memoryType.icon className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-2">
+                        {/* Title - Full width, can wrap to multiple lines */}
+                        <CardTitle className="text-lg leading-snug break-words">{memory.title}</CardTitle>
+                        
+                        {/* Bottom row: Timestamp + Badges + Buttons */}
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm text-muted-foreground whitespace-nowrap">
+                              {formatRelativeTime(memory.created_at)}
+                            </p>
+                            
                             {/* 🎬 DEBUG BADGE: Show files count */}
                             {memory.files && memory.files.length > 0 && (
                               <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 flex-shrink-0">
@@ -1283,30 +1289,29 @@ export const VaultPage: React.FC<VaultPageProps> = ({ user, family, onNavigate }
                               </Badge>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            {formatRelativeTime(memory.created_at)}
-                          </p>
+                          
+                          {/* Edit/Delete buttons - Always visible on right */}
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0 text-violet hover:text-violet hover:bg-violet/10"
+                              onClick={(e) => handleEditMemory(memory, e)}
+                              title="Edit memory"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={(e) => handleDeleteMemory(memory, e)}
+                              title="Delete memory"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0 text-violet hover:text-violet hover:bg-violet/10"
-                          onClick={(e) => handleEditMemory(memory, e)}
-                          title="Edit memory"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={(e) => handleDeleteMemory(memory, e)}
-                          title="Delete memory"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
                       </div>
                     </div>
                   </CardHeader>
@@ -1494,37 +1499,6 @@ export const VaultPage: React.FC<VaultPageProps> = ({ user, family, onNavigate }
                           {memory.emotionTags.length > 3 && (
                             <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-muted text-muted-foreground border-0">
                               +{memory.emotionTags.length - 3}
-                            </Badge>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* 🆕 Memory Date */}
-                      {(memory.date || memory.memory_date || memory.date_of_memory) && (
-                        <div className="flex items-center space-x-1 min-w-0">
-                          <Calendar className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                          <span className="text-xs text-muted-foreground truncate">
-                            {formatDateForDisplay(memory.date || memory.memory_date || memory.date_of_memory)}
-                          </span>
-                        </div>
-                      )}
-                      
-                      {/* 🆕 General Tags */}
-                      {memory.tags && memory.tags.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-1.5 min-w-0 pt-1">
-                          {memory.tags.slice(0, 3).map((tag: string, idx: number) => (
-                            <Badge 
-                              key={idx} 
-                              variant="outline"
-                              className="text-xs px-2 py-0.5 bg-aqua/10 text-aqua border-aqua/30 flex items-center gap-1"
-                            >
-                              <TagIcon className="w-3 h-3" />
-                              <span>{tag}</span>
-                            </Badge>
-                          ))}
-                          {memory.tags.length > 3 && (
-                            <Badge variant="outline" className="text-xs px-2 py-0.5 bg-muted text-muted-foreground border-0">
-                              +{memory.tags.length - 3}
                             </Badge>
                           )}
                         </div>
@@ -1756,43 +1730,6 @@ export const VaultPage: React.FC<VaultPageProps> = ({ user, family, onNavigate }
                         );
                       }
                     })}
-                  </div>
-                </div>
-              )}
-
-              {/* 🆕 Memory Date Section */}
-              {(selectedMemory.date || selectedMemory.memory_date || selectedMemory.date_of_memory) && (
-                <div className="space-y-2 w-full">
-                  <h4 className="font-medium text-foreground flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-primary" />
-                    Date of Memory
-                  </h4>
-                  <div className="flex items-center space-x-2 text-muted-foreground w-full">
-                    <span className="break-words flex-1 text-base">
-                      {formatDateForDisplay(selectedMemory.date || selectedMemory.memory_date || selectedMemory.date_of_memory)}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* 🆕 Tags Section */}
-              {selectedMemory.tags && selectedMemory.tags.length > 0 && (
-                <div className="space-y-3 w-full">
-                  <h4 className="font-medium text-foreground flex items-center gap-2">
-                    <TagIcon className="w-4 h-4 text-primary" />
-                    Tags
-                  </h4>
-                  <div className="flex flex-wrap gap-2 w-full">
-                    {selectedMemory.tags.map((tag: string, index: number) => (
-                      <Badge 
-                        key={index} 
-                        variant="outline"
-                        className="px-3 py-1.5 bg-aqua/10 text-aqua border-aqua/30 flex items-center gap-2 text-sm hover:bg-aqua/20 transition-colors"
-                      >
-                        <TagIcon className="w-4 h-4" />
-                        <span>{tag}</span>
-                      </Badge>
-                    ))}
                   </div>
                 </div>
               )}

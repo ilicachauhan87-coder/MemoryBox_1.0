@@ -853,6 +853,7 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
         'milestones': 'milestones',
         'everyday': 'moments-memories',
         'moments': 'moments-memories',
+        'moments-memories': 'moments-memories',
         'tradition': 'rituals-traditions',
         'traditions': 'rituals-traditions',
         'rituals-traditions': 'rituals-traditions',
@@ -864,10 +865,7 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
         'recipes-wisdom': 'recipes-wisdom',
         'story': 'stories',
         'stories': 'stories',
-        'time-capsule': 'time-capsule',
-        // New mappings (current IDs)
-        'moments-memories': 'moments-memories',
-        'rituals-traditions': 'rituals-traditions'
+        'time-capsule': 'time-capsule'
       };
       
       console.log('🔍 CATEGORY DEBUG - All possible category fields:', {

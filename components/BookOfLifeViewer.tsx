@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, ChevronLeft, ChevronRight, Calendar, MapPin, Tag, Users, Heart, Baby, Sparkles, Share, Download, Edit, Trash2, ImageIcon, Video as VideoIcon, Mic, Play, FileAudio, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';

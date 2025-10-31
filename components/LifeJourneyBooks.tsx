@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { Edit2, BookOpen, Heart, Baby, Calendar, MapPin, Sparkles, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';

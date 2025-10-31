@@ -40,6 +40,7 @@ const AdminDashboardPage = lazy(() => import('./components/AdminDashboardPage').
 const PasswordResetCallback = lazy(() => import('./components/PasswordResetCallback').then(m => ({ default: m.PasswordResetCallback })));
 const PasswordResetLandingPage = lazy(() => import('./components/PasswordResetLandingPage').then(m => ({ default: m.PasswordResetLandingPage })));
 const UpdatePasswordPage = lazy(() => import('./components/UpdatePasswordPage').then(m => ({ default: m.UpdatePasswordPage })));
+const BookOfLifeViewer = lazy(() => import('./components/BookOfLifeViewer').then(m => ({ default: m.BookOfLifeViewer })));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -873,6 +874,8 @@ const NewUserHomeWrapper = () => {
       'profile': '/profile',
       'family-wall': '/wall',
       'journey-selection': '/journey',
+      'book-couple': '/vault/book/couple',
+      'book-pregnancy': '/vault/book/pregnancy',
       'journal': '/journal',
       'invite-family-member': '/invite',
       'time-capsules': '/capsules'
@@ -1781,6 +1784,8 @@ const MemoryUploadPageWrapper = () => {
       'profile': '/profile',
       'family-wall': '/wall',
       'journey-selection': '/journey',
+      'book-couple': '/vault/book/couple',
+      'book-pregnancy': '/vault/book/pregnancy',
       'journal': '/journal',
       'invite-family-member': '/invite',
       'time-capsules': '/capsules',
@@ -2039,6 +2044,10 @@ const VaultPageWrapper = () => {
       'profile': '/profile',
       'family-wall': '/wall',
       'journey-selection': '/journey',
+      'couple-journey': '/journey/couple',
+      'pregnancy-journey': '/journey/pregnancy',
+      'book-couple': '/vault/book/couple',
+      'book-pregnancy': '/vault/book/pregnancy',
       'journal': '/journal',
       'invite-family-member': '/invite',
       'time-capsules': '/capsules',
@@ -2079,6 +2088,232 @@ const VaultPageWrapper = () => {
         currentPage={currentPage}
         onNavigate={handleNavigate}
         unreadCount={unreadCount}
+      />
+    </>
+  );
+};
+
+// Wrapper component for Book of Life Viewer (Couple Journey)
+const BookOfLifeCoupleWrapper = () => {
+  const navigate = useNavigate();
+  const [user, setUser] = useState<any>(null);
+  const [memories, setMemories] = useState<any[]>([]);
+  const [bookTitle, setBookTitle] = useState('Our Love Story');
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      const currentUserId = localStorage.getItem('current_user_id');
+      if (currentUserId) {
+        const userProfile = localStorage.getItem(`user:${currentUserId}:profile`);
+        if (userProfile) {
+          const userData = JSON.parse(userProfile);
+          setUser(userData);
+          
+          // Load memories from database
+          if (userData.family_id) {
+            try {
+              const allMemories = await DatabaseService.getFamilyMemories(userData.family_id);
+              const coupleMemories = allMemories.filter((m: any) => m.journey_type === 'couple');
+              setMemories(coupleMemories);
+              
+              // Load book title from preferences
+              const prefs = await DatabaseService.getBookPreferences(currentUserId);
+              if (prefs?.couple) {
+                setBookTitle(prefs.couple);
+              }
+            } catch (error) {
+              console.error('Failed to load memories:', error);
+            }
+          }
+        }
+      }
+      setIsLoadingUser(false);
+    };
+
+    loadData();
+  }, []);
+
+  const handleNavigate = async (page: string) => {
+    const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
+    
+    const pageRoutes: { [key: string]: string } = {
+      'home': homeRoute,
+      'vault': '/vault',
+      'upload-memory': '/upload',
+      'family-tree': '/tree',
+      'profile': '/profile',
+      'family-wall': '/wall',
+      'journal': '/journal',
+      'time-capsules': '/capsules'
+    };
+
+    const route = pageRoutes[page] || '/vault';
+    navigate(route);
+  };
+
+  const handleBack = () => {
+    navigate('/vault');
+  };
+
+  const handleMemoryDeleted = async () => {
+    // Reload memories after deletion
+    if (user?.family_id) {
+      try {
+        const allMemories = await DatabaseService.getFamilyMemories(user.family_id);
+        const coupleMemories = allMemories.filter((m: any) => m.journey_type === 'couple');
+        setMemories(coupleMemories);
+      } catch (error) {
+        console.error('Failed to reload memories:', error);
+      }
+    }
+  };
+
+  if (isLoadingUser) {
+    return (
+      <div className="min-h-screen bg-cream flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet mx-auto mb-4"></div>
+          <p className="text-ink">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <TopNavigationBar 
+        user={user}
+        onNavigate={handleNavigate}
+      />
+      <div className="pt-16">
+        <BookOfLifeViewer
+          journeyType="couple"
+          bookTitle={bookTitle}
+          memories={memories}
+          user={user}
+          onBack={handleBack}
+          onNavigate={handleNavigate}
+          onMemoryDeleted={handleMemoryDeleted}
+        />
+      </div>
+      <BottomNavigation 
+        currentPage="vault"
+        onNavigate={handleNavigate}
+        unreadCount={0}
+      />
+    </>
+  );
+};
+
+// Wrapper component for Book of Life Viewer (Pregnancy Journey)
+const BookOfLifePregnancyWrapper = () => {
+  const navigate = useNavigate();
+  const [user, setUser] = useState<any>(null);
+  const [memories, setMemories] = useState<any[]>([]);
+  const [bookTitle, setBookTitle] = useState("Our Baby's Journey");
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      const currentUserId = localStorage.getItem('current_user_id');
+      if (currentUserId) {
+        const userProfile = localStorage.getItem(`user:${currentUserId}:profile`);
+        if (userProfile) {
+          const userData = JSON.parse(userProfile);
+          setUser(userData);
+          
+          // Load memories from database
+          if (userData.family_id) {
+            try {
+              const allMemories = await DatabaseService.getFamilyMemories(userData.family_id);
+              const pregnancyMemories = allMemories.filter((m: any) => m.journey_type === 'pregnancy');
+              setMemories(pregnancyMemories);
+              
+              // Load book title from preferences
+              const prefs = await DatabaseService.getBookPreferences(currentUserId);
+              if (prefs?.pregnancy) {
+                setBookTitle(prefs.pregnancy);
+              }
+            } catch (error) {
+              console.error('Failed to load memories:', error);
+            }
+          }
+        }
+      }
+      setIsLoadingUser(false);
+    };
+
+    loadData();
+  }, []);
+
+  const handleNavigate = async (page: string) => {
+    const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
+    
+    const pageRoutes: { [key: string]: string } = {
+      'home': homeRoute,
+      'vault': '/vault',
+      'upload-memory': '/upload',
+      'family-tree': '/tree',
+      'profile': '/profile',
+      'family-wall': '/wall',
+      'journal': '/journal',
+      'time-capsules': '/capsules'
+    };
+
+    const route = pageRoutes[page] || '/vault';
+    navigate(route);
+  };
+
+  const handleBack = () => {
+    navigate('/vault');
+  };
+
+  const handleMemoryDeleted = async () => {
+    // Reload memories after deletion
+    if (user?.family_id) {
+      try {
+        const allMemories = await DatabaseService.getFamilyMemories(user.family_id);
+        const pregnancyMemories = allMemories.filter((m: any) => m.journey_type === 'pregnancy');
+        setMemories(pregnancyMemories);
+      } catch (error) {
+        console.error('Failed to reload memories:', error);
+      }
+    }
+  };
+
+  if (isLoadingUser) {
+    return (
+      <div className="min-h-screen bg-cream flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet mx-auto mb-4"></div>
+          <p className="text-ink">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <TopNavigationBar 
+        user={user}
+        onNavigate={handleNavigate}
+      />
+      <div className="pt-16">
+        <BookOfLifeViewer
+          journeyType="pregnancy"
+          bookTitle={bookTitle}
+          memories={memories}
+          user={user}
+          onBack={handleBack}
+          onNavigate={handleNavigate}
+          onMemoryDeleted={handleMemoryDeleted}
+        />
+      </div>
+      <BottomNavigation 
+        currentPage="vault"
+        onNavigate={handleNavigate}
+        unreadCount={0}
       />
     </>
   );
@@ -2215,6 +2450,10 @@ const ReturningUserHomeWrapper = () => {
       'profile': '/profile',
       'family-wall': '/wall',
       'journey-selection': '/journey',
+      'couple-journey': '/journey/couple',
+      'pregnancy-journey': '/journey/pregnancy',
+      'book-couple': '/vault/book/couple',
+      'book-pregnancy': '/vault/book/pregnancy',
       'journal': '/journal',
       'invite-family-member': '/invite',
       'time-capsules': '/capsules'
@@ -2304,6 +2543,8 @@ const JourneySelectionWrapper = () => {
       'profile': '/profile',
       'family-wall': '/wall',
       'journey-selection': '/journey',
+      'book-couple': '/vault/book/couple',
+      'book-pregnancy': '/vault/book/pregnancy',
       'journal': '/journal',
       'invite-family-member': '/invite',
       'time-capsules': '/capsules',
@@ -2421,6 +2662,10 @@ const CoupleJourneyWrapper = () => {
       'profile': '/profile',
       'family-wall': '/wall',
       'journey-selection': '/journey',
+      'couple-journey': '/journey/couple',
+      'pregnancy-journey': '/journey/pregnancy',
+      'book-couple': '/vault/book/couple',
+      'book-pregnancy': '/vault/book/pregnancy',
       'journal': '/journal',
       'invite-family-member': '/invite',
       'time-capsules': '/capsules'
@@ -2527,6 +2772,10 @@ const PregnancyJourneyWrapper = () => {
       'profile': '/profile',
       'family-wall': '/wall',
       'journey-selection': '/journey',
+      'couple-journey': '/journey/couple',
+      'pregnancy-journey': '/journey/pregnancy',
+      'book-couple': '/vault/book/couple',
+      'book-pregnancy': '/vault/book/pregnancy',
       'journal': '/journal',
       'invite-family-member': '/invite',
       'time-capsules': '/capsules'
@@ -2683,6 +2932,8 @@ const JournalPageWrapper = () => {
       'profile': '/profile',
       'family-wall': '/wall',
       'journey-selection': '/journey',
+      'book-couple': '/vault/book/couple',
+      'book-pregnancy': '/vault/book/pregnancy',
       'journal': '/journal',
       'invite-family-member': '/invite',
       'time-capsules': '/capsules',
@@ -2802,6 +3053,8 @@ const InviteFamilyMemberPageWrapper = () => {
       'profile': '/profile',
       'family-wall': '/wall',
       'journey-selection': '/journey',
+      'book-couple': '/vault/book/couple',
+      'book-pregnancy': '/vault/book/pregnancy',
       'journal': '/journal',
       'invite-family-member': '/invite',
       'time-capsules': '/capsules',
@@ -2977,6 +3230,10 @@ const TimeCapsulesPageWrapper = () => {
       'profile': '/profile',
       'family-wall': '/wall',
       'journey-selection': '/journey',
+      'couple-journey': '/journey/couple',
+      'pregnancy-journey': '/journey/pregnancy',
+      'book-couple': '/vault/book/couple',
+      'book-pregnancy': '/vault/book/pregnancy',
       'journal': '/journal',
       'invite-family-member': '/invite',
       'time-capsules': '/capsules',
@@ -3095,6 +3352,10 @@ const FamilyWallPageWrapper = () => {
       'profile': '/profile',
       'family-wall': '/wall',
       'journey-selection': '/journey',
+      'couple-journey': '/journey/couple',
+      'pregnancy-journey': '/journey/pregnancy',
+      'book-couple': '/vault/book/couple',
+      'book-pregnancy': '/vault/book/pregnancy',
       'journal': '/journal',
       'invite-family-member': '/invite',
       'time-capsules': '/capsules',
@@ -3199,6 +3460,8 @@ const ProfilePageWrapper = () => {
       'profile': '/profile',
       'family-wall': '/wall',
       'journey-selection': '/journey',
+      'book-couple': '/vault/book/couple',
+      'book-pregnancy': '/vault/book/pregnancy',
       'journal': '/journal',
       'invite-family-member': '/invite',
       'time-capsules': '/capsules',
@@ -3327,6 +3590,8 @@ const App: React.FC = () => {
               <Route path="/app" element={<ProtectedRoute><ReturningUserHomeWrapper /></ProtectedRoute>} />
               <Route path="/tree" element={<ProtectedRoute><FamilyTreeWrapper /></ProtectedRoute>} />
               <Route path="/vault" element={<ProtectedRoute><VaultPageWrapper /></ProtectedRoute>} />
+              <Route path="/vault/book/couple" element={<ProtectedRoute><BookOfLifeCoupleWrapper /></ProtectedRoute>} />
+              <Route path="/vault/book/pregnancy" element={<ProtectedRoute><BookOfLifePregnancyWrapper /></ProtectedRoute>} />
               <Route path="/upload" element={<ProtectedRoute><MemoryUploadPageWrapper /></ProtectedRoute>} />
               <Route path="/journal" element={<ProtectedRoute><JournalPageWrapper /></ProtectedRoute>} />
               <Route path="/journey" element={<ProtectedRoute><JourneySelectionWrapper /></ProtectedRoute>} />

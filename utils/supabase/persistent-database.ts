@@ -1982,6 +1982,86 @@ class PersistentDatabase {
       throw new Error(`Failed to delete journal from database: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+
+  /**
+   * 📚 BOOK OF LIFE: Get book preferences for user
+   */
+  async getBookPreferences(userId: string): Promise<any[]> {
+    if (!this.isValidUUID(userId)) {
+      console.log('📦 DatabaseService: Invalid/demo ID - no book preferences');
+      return [];
+    }
+
+    try {
+      const { data, error } = await this.supabase
+        .from('user_book_preferences')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('❌ Failed to load book preferences:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 📚 BOOK OF LIFE: Save/update book preference
+   */
+  async saveBookPreference(userId: string, preference: {
+    journey_type: 'couple' | 'pregnancy';
+    custom_title: string;
+  }): Promise<void> {
+    if (!this.isValidUUID(userId)) {
+      console.log('📦 DatabaseService: Invalid/demo ID - cannot save book preference');
+      throw new Error('Invalid user ID');
+    }
+
+    try {
+      const { error } = await this.supabase
+        .from('user_book_preferences')
+        .upsert({
+          user_id: userId,
+          journey_type: preference.journey_type,
+          custom_title: preference.custom_title,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,journey_type'
+        });
+
+      if (error) throw error;
+      console.log('✅ Book preference saved to database');
+    } catch (error) {
+      console.error('❌ Failed to save book preference:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 📚 BOOK OF LIFE: Update last opened timestamp
+   */
+  async updateBookLastOpened(userId: string, journeyType: 'couple' | 'pregnancy'): Promise<void> {
+    if (!this.isValidUUID(userId)) return;
+
+    try {
+      const { error } = await this.supabase
+        .from('user_book_preferences')
+        .upsert({
+          user_id: userId,
+          journey_type: journeyType,
+          last_opened_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,journey_type'
+        });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('❌ Failed to update last opened:', error);
+      // Silent failure - not critical
+    }
+  }
 }
 
 export const DatabaseService = new PersistentDatabase();

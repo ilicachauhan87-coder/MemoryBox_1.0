@@ -56,6 +56,7 @@ import { toast } from 'sonner@2.0.3';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import { DatabaseService } from '../utils/supabase/persistent-database';
 import { MemoryMediaViewer } from './MemoryMediaViewer';
+import { LifeJourneyBooks } from './LifeJourneyBooks';
 
 interface VaultPageProps {
   user: UserProfile | null;
@@ -736,6 +737,13 @@ export const VaultPage: React.FC<VaultPageProps> = ({ user, family, onNavigate }
             <span className="truncate">Add Memory</span>
           </Button>
         </div>
+
+        {/* 📚 BOOK OF LIFE: Life Journey Books Section */}
+        <LifeJourneyBooks 
+          userId={user?.id || null}
+          memories={memories}
+          onNavigate={onNavigate}
+        />
 
         {/* Search & View Mode Controls */}
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full">

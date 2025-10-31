@@ -1,0 +1,611 @@
+/* =====================================================
+   📚 BOOK OF LIFE - 3D Book Animations & Styles
+   ===================================================== */
+
+/* Book Shelf Container - Safe Area & Overflow Prevention */
+.book-shelf-container {
+  max-width: 100vw;
+  overflow-x: hidden;
+  overflow-y: visible;
+  position: relative;
+  z-index: 1;
+  padding: max(32px, env(safe-area-inset-top)) 
+           max(16px, env(safe-area-inset-right)) 
+           max(16px, env(safe-area-inset-bottom)) 
+           max(16px, env(safe-area-inset-left));
+  margin-bottom: calc(80px + 16px); /* Space for bottom nav */
+}
+
+/* Books Grid */
+.books-grid {
+  width: 100%;
+  max-width: 100%;
+  isolation: isolate; /* Create stacking context */
+}
+
+/* Book Card Wrapper */
+.book-card-wrapper {
+  perspective: 1200px;
+  max-width: 100%;
+}
+
+/* 3D Book Card - Desktop - More Symmetrical & Taller for No Overflow */
+.book-card {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  height: 300px;
+  margin: 0 auto;
+  transform-style: preserve-3d;
+  transform: rotateY(-8deg) rotateX(1deg);
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease;
+  cursor: pointer;
+  z-index: 10;
+  -webkit-tap-highlight-color: rgba(106, 5, 114, 0.1);
+  -webkit-touch-callout: none;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+/* Hover Effect - Desktop - Subtle Lift */
+@media (hover: hover) and (pointer: fine) {
+  .book-card:hover {
+    transform: rotateY(-6deg) rotateX(0deg) translateY(-8px) scale(1.02);
+    z-index: 20;
+  }
+}
+
+/* Active/Touch Effect - Mobile */
+.book-card:active {
+  transform: rotateY(-8deg) rotateX(1deg) scale(0.98);
+  transition: transform 0.1s ease-out;
+}
+
+/* Focus State - Accessibility */
+.book-card:focus {
+  outline: 3px solid #6A0572;
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
+/* Book Spine - Left Side */
+.book-spine {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 32px;
+  transform-origin: left;
+  transform: rotateY(-90deg) translateX(-32px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.3);
+  z-index: 5;
+}
+
+.book-spine-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 8px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Book Cover - Front Face */
+.book-cover {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  box-shadow: 
+    4px 4px 12px rgba(0, 0, 0, 0.15),
+    8px 8px 24px rgba(0, 0, 0, 0.1);
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: stretch;
+  z-index: 10;
+  padding: 2px 20px 70px 20px; /* 30% upward shift for desktop (300px height) */
+}
+
+/* Book Cover Texture Overlay */
+.book-cover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: 
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 2px,
+      rgba(255, 255, 255, 0.03) 2px,
+      rgba(255, 255, 255, 0.03) 4px
+    );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.book-cover > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* Page Edges - Right Side */
+.book-page-edges {
+  position: absolute;
+  right: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 12px;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0.9),
+    rgba(240, 240, 240, 0.95),
+    rgba(255, 255, 255, 0.9)
+  );
+  transform-origin: left;
+  transform: rotateY(90deg) translateX(12px);
+  box-shadow: 
+    inset -1px 0 1px rgba(0, 0, 0, 0.1),
+    2px 0 4px rgba(0, 0, 0, 0.1);
+  border-radius: 0 2px 2px 0;
+  z-index: 1;
+}
+
+/* Page Lines Effect */
+.book-page-edges::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 3px,
+    rgba(0, 0, 0, 0.05) 3px,
+    rgba(0, 0, 0, 0.05) 4px
+  );
+  pointer-events: none;
+}
+
+/* Pagination Dots - Mobile Only */
+.swipe-pagination {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.pagination-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(106, 5, 114, 0.3);
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  padding: 0;
+  min-width: auto;
+  min-height: auto;
+}
+
+.pagination-dot.active {
+  width: 24px;
+  border-radius: 4px;
+  background: #6A0572;
+}
+
+.pagination-dot:hover {
+  background: rgba(106, 5, 114, 0.6);
+  transform: scale(1.2);
+}
+
+.pagination-dot:focus {
+  outline: 2px solid #6A0572;
+  outline-offset: 2px;
+}
+
+/* =====================================================
+   📱 RESPONSIVE BREAKPOINTS
+   ===================================================== */
+
+/* Tablet Landscape (768px - 1023px) */
+@media (max-width: 1023px) and (min-width: 768px) {
+  .book-card {
+    max-width: 320px;
+    height: 260px;
+  }
+  
+  .book-spine {
+    width: 28px;
+  }
+  
+  .book-cover {
+    padding: 2px 18px 62px 18px; /* 30% upward shift for tablet (260px height) */
+  }
+}
+
+/* Tablet Portrait & Mobile (< 768px) - Less Tilt, Taller for No Overflow */
+@media (max-width: 767px) {
+  .book-shelf-container {
+    padding: 24px 16px;
+    margin-bottom: calc(80px + 24px); /* Extra space for FAB */
+  }
+  
+  .books-grid {
+    gap: 20px;
+  }
+  
+  .book-card {
+    max-width: 100%;
+    height: 280px;
+    transform: rotateY(-5deg) rotateX(0deg);
+  }
+  
+  .book-card:active {
+    transform: rotateY(-5deg) rotateX(0deg) scale(0.97);
+  }
+  
+  .book-spine {
+    width: 24px;
+    transform: rotateY(-90deg) translateX(-24px);
+  }
+  
+  .book-spine-text {
+    font-size: 11px;
+    font-weight: 600;
+  }
+  
+  .book-cover {
+    padding: 2px 20px 320px 20px; /* 120% upward shift for mobile (280px height) */
+  }
+}
+
+/* Mobile Medium (375px - 413px) */
+@media (max-width: 413px) {
+  .book-card {
+    height: 260px;
+  }
+  
+  .book-cover {
+    padding: 2px 18px 296px 18px; /* 120% upward shift for mobile medium (260px height) */
+  }
+}
+
+/* Mobile Small (< 375px) */
+@media (max-width: 374px) {
+  .book-card {
+    height: 240px;
+    transform: rotateY(-3deg) rotateX(0deg);
+  }
+  
+  .book-card:hover {
+    transform: rotateY(-3deg) rotateX(0deg) scale(1.02);
+  }
+  
+  .book-card:active {
+    transform: rotateY(-3deg) rotateX(0deg) scale(0.98);
+  }
+  
+  .book-spine {
+    width: 20px;
+  }
+  
+  .book-cover {
+    padding: 2px 16px 272px 16px; /* 120% upward shift for mobile small (240px height) */
+  }
+}
+
+/* Landscape Orientation - Mobile/Tablet */
+@media (max-width: 1024px) and (orientation: landscape) {
+  .book-shelf-container {
+    padding: 12px 24px;
+  }
+  
+  .books-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    max-height: calc(100vh - 180px);
+    overflow-y: auto;
+  }
+  
+  .book-card {
+    height: 160px;
+  }
+  
+  .book-cover {
+    padding: 2px 16px 184px 16px; /* 120% upward shift for landscape (160px height) */
+  }
+}
+
+/* =====================================================
+   ♿ ACCESSIBILITY - High Contrast & Reduced Motion
+   ===================================================== */
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .book-cover {
+    border: 2px solid currentColor;
+  }
+  
+  .pagination-dot {
+    border: 1px solid currentColor;
+  }
+}
+
+/* Reduced Motion - Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .book-card,
+  .book-card:hover,
+  .book-card:active,
+  .pagination-dot {
+    transition: none;
+    animation: none;
+  }
+  
+  .book-card {
+    transform: rotateY(-3deg);
+  }
+  
+  .book-card:hover {
+    transform: rotateY(-3deg) scale(1.02);
+  }
+  
+  .book-card:active {
+    transform: rotateY(-3deg) scale(0.98);
+  }
+}
+
+/* =====================================================
+   🌙 DARK MODE SUPPORT
+   ===================================================== */
+
+@media (prefers-color-scheme: dark) {
+  .book-shelf-container {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  }
+  
+  .book-page-edges {
+    background: linear-gradient(
+      to right,
+      rgba(200, 200, 200, 0.9),
+      rgba(180, 180, 180, 0.95),
+      rgba(200, 200, 200, 0.9)
+    );
+  }
+}
+
+/* Dark mode manual toggle */
+[data-theme="dark"] .book-shelf-container {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+[data-theme="dark"] .book-page-edges {
+  background: linear-gradient(
+    to right,
+    rgba(200, 200, 200, 0.9),
+    rgba(180, 180, 180, 0.95),
+    rgba(200, 200, 200, 0.9)
+  );
+}
+
+/* =====================================================
+   📱 RESPONSIVE TYPOGRAPHY - Desktop vs Mobile
+   ===================================================== */
+
+/* Book Title - Larger on desktop to maintain visual proportion */
+.book-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+@media (min-width: 768px) {
+  .book-title {
+    font-size: 20px; /* 25% larger on desktop */
+  }
+}
+
+/* Memory Count Text */
+.book-memory-count {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+@media (min-width: 768px) {
+  .book-memory-count {
+    font-size: 15px;
+  }
+}
+
+/* Date Range & Last Added Text */
+.book-metadata-text {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+@media (min-width: 768px) {
+  .book-metadata-text {
+    font-size: 14px;
+  }
+}
+
+/* Last Added Badge - Increased font weight on desktop */
+.book-last-added {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+@media (min-width: 768px) {
+  .book-last-added {
+    font-size: 14px;
+    font-weight: 600;
+  }
+}
+
+/* Tap Indicator - Stays same on all devices */
+.book-tap-indicator {
+  font-size: 11px;
+}
+
+/* =====================================================
+   🎭 RTL (RIGHT-TO-LEFT) SUPPORT
+   ===================================================== */
+
+[dir="rtl"] .book-card {
+  transform: rotateY(8deg) rotateX(1deg);
+}
+
+[dir="rtl"] .book-card:hover {
+  transform: rotateY(6deg) rotateX(0deg) translateY(-8px) scale(1.02);
+}
+
+[dir="rtl"] .book-spine {
+  left: auto;
+  right: 0;
+  transform-origin: right;
+  transform: rotateY(90deg) translateX(32px);
+}
+
+[dir="rtl"] .book-page-edges {
+  right: auto;
+  left: 0;
+  transform-origin: right;
+  transform: rotateY(-90deg) translateX(-12px);
+}
+
+/* =====================================================
+   ⏳ SKELETON LOADING STATES
+   ===================================================== */
+
+/* Shimmer Animation */
+@keyframes shimmer {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes shimmerMove {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  animation: shimmer 1.5s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    rgba(253, 252, 220, 0.1) 0%,
+    rgba(106, 5, 114, 0.15) 50%,
+    rgba(253, 252, 220, 0.1) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmerMove 1.5s linear infinite;
+}
+
+/* Book Card Skeleton */
+.book-card-skeleton {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  height: 300px;
+  margin: 0 auto;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.book-spine-skeleton {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 32px;
+  background: linear-gradient(135deg, rgba(106, 5, 114, 0.3) 0%, rgba(106, 5, 114, 0.5) 100%);
+  border-radius: 8px 0 0 8px;
+}
+
+.book-cover-skeleton {
+  position: absolute;
+  left: 32px;
+  right: 12px;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 111, 97, 0.3) 0%, rgba(106, 5, 114, 0.3) 100%);
+  border-radius: 0 8px 8px 0;
+}
+
+.book-page-edges-skeleton {
+  position: absolute;
+  right: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 12px;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0.5),
+    rgba(240, 240, 240, 0.6),
+    rgba(255, 255, 255, 0.5)
+  );
+  border-radius: 0 4px 4px 0;
+}
+
+/* Dark mode skeleton */
+@media (prefers-color-scheme: dark) {
+  .book-cover-skeleton {
+    background: linear-gradient(135deg, rgba(255, 111, 97, 0.2) 0%, rgba(106, 5, 114, 0.2) 100%);
+  }
+  
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(253, 252, 220, 0.05) 0%,
+      rgba(106, 5, 114, 0.1) 50%,
+      rgba(253, 252, 220, 0.05) 100%
+    );
+    background-size: 200% 100%;
+  }
+}
+
+/* Responsive skeleton */
+@media (max-width: 767px) {
+  .book-card-skeleton {
+    max-width: 100%;
+    height: 280px;
+  }
+  
+  .book-spine-skeleton {
+    width: 24px;
+  }
+}
+
+@media (max-width: 413px) {
+  .book-card-skeleton {
+    height: 260px;
+  }
+}
+
+@media (max-width: 374px) {
+  .book-card-skeleton {
+    height: 240px;
+  }
+  
+  .book-spine-skeleton {
+    width: 20px;
+  }
+}

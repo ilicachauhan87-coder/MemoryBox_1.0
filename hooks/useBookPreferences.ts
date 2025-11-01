@@ -7,6 +7,7 @@ export interface BookPreference {
   user_id: string;
   journey_type: 'couple' | 'pregnancy';
   custom_title: string;
+  child_id?: string | null; // NEW: For pregnancy books
   cover_color?: string;
   last_opened_at?: string;
   created_at?: string;
@@ -14,11 +15,11 @@ export interface BookPreference {
 }
 
 interface UseBookPreferencesReturn {
-  preferences: Record<string, string>; // journey_type -> custom_title
+  preferences: Record<string, string>; // journey_type or child_id -> custom_title
   loading: boolean;
   error: string | null;
-  updateTitle: (journeyType: 'couple' | 'pregnancy', title: string) => Promise<void>;
-  markAsOpened: (journeyType: 'couple' | 'pregnancy') => Promise<void>;
+  updateTitle: (journeyType: 'couple' | 'pregnancy', title: string, childId?: string) => Promise<void>; // NEW: Added childId
+  markAsOpened: (journeyType: 'couple' | 'pregnancy', childId?: string) => Promise<void>; // NEW: Added childId
 }
 
 export const useBookPreferences = (userId: string | null): UseBookPreferencesReturn => {
@@ -52,7 +53,12 @@ export const useBookPreferences = (userId: string | null): UseBookPreferencesRet
           
           data.forEach((pref: BookPreference) => {
             if (pref.custom_title) {
-              prefs[pref.journey_type] = pref.custom_title;
+              // NEW: For pregnancy books with child_id, use child_id as key
+              if (pref.journey_type === 'pregnancy' && pref.child_id) {
+                prefs[pref.child_id] = pref.custom_title;
+              } else {
+                prefs[pref.journey_type] = pref.custom_title;
+              }
             }
           });
           
@@ -70,7 +76,7 @@ export const useBookPreferences = (userId: string | null): UseBookPreferencesRet
   }, [userId]);
 
   // Update title (database-first)
-  const updateTitle = async (journeyType: 'couple' | 'pregnancy', title: string) => {
+  const updateTitle = async (journeyType: 'couple' | 'pregnancy', title: string, childId?: string) => {
     if (!userId) {
       toast.error('Please sign in to save book titles');
       return;
@@ -90,13 +96,16 @@ export const useBookPreferences = (userId: string | null): UseBookPreferencesRet
       // Save to database FIRST
       await DatabaseService.saveBookPreference(userId, {
         journey_type: journeyType,
-        custom_title: title.trim()
+        custom_title: title.trim(),
+        child_id: childId // NEW: Include child_id
       });
 
       // Update UI state (only after database success)
+      // NEW: Use child_id as key for pregnancy books, journey_type for couple books
+      const key = (journeyType === 'pregnancy' && childId) ? childId : journeyType;
       setPreferences(prev => ({
         ...prev,
-        [journeyType]: title.trim()
+        [key]: title.trim()
       }));
 
       toast.success('Book title saved!');
@@ -108,11 +117,11 @@ export const useBookPreferences = (userId: string | null): UseBookPreferencesRet
   };
 
   // Mark book as opened (update last_opened_at)
-  const markAsOpened = async (journeyType: 'couple' | 'pregnancy') => {
+  const markAsOpened = async (journeyType: 'couple' | 'pregnancy', childId?: string) => {
     if (!userId) return;
 
     try {
-      await DatabaseService.updateBookLastOpened(userId, journeyType);
+      await DatabaseService.updateBookLastOpened(userId, journeyType, childId); // NEW: Pass child_id
     } catch (err) {
       console.error('❌ Failed to update last opened:', err);
       // Silent failure - not critical

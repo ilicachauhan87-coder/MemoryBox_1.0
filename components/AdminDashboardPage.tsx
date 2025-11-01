@@ -50,9 +50,7 @@ import { toast } from 'sonner@2.0.3';
 // Add your Supabase user ID here after creating your account
 // To find your user ID: Sign up → Check browser console for "User ID: xxx"
 // Or check Supabase Dashboard → Authentication → Users
-const ADMIN_USER_IDS = [4cbe4278-760f-45f0-b117-fba603ac1142
-  // 'YOUR_USER_ID_HERE' // Replace with your actual UUID after signup
-];
+const ADMIN_USER_IDS = [4cbe4278-760f-45f0-b117-fba603ac1142];
 
 const ADMIN_EMAIL = 'ilicachauhan87@gmail.com'; // For display purposes only
 

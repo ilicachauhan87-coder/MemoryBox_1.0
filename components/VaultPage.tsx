@@ -290,8 +290,38 @@ export const VaultPage: React.FC<VaultPageProps> = ({ user, family, onNavigate }
         // 🚀 DATABASE-FIRST: Load memories from Supabase database (with localStorage fallback)
         console.log(`🔍 VaultPage: Loading memories from database for family ${currentFamily.id}`);
         const userMemories = await DatabaseService.getFamilyMemories(currentFamily.id);
-        setMemories(userMemories);
-        console.log(`✅ VaultPage: Loaded ${userMemories.length} memories for ${user.email}`);
+        
+        // ✅ NEW: Load family tree to resolve people IDs → names
+        let familyTreeData: any = null;
+        try {
+          familyTreeData = await DatabaseService.getFamilyTree(currentFamily.id);
+        } catch (error) {
+          console.warn('⚠️ VaultPage: Could not load family tree for people resolution:', error);
+        }
+        
+        // ✅ NEW: Transform memories to include people names instead of just IDs
+        const memoriesWithPeople = userMemories.map((memory: any) => {
+          const peopleInvolved = memory.people_involved || memory.people_ids || memory.person_tags || [];
+          
+          if (peopleInvolved.length > 0 && familyTreeData?.tree_data?.members) {
+            // Resolve person IDs to names from family tree
+            const peopleNames = peopleInvolved.map((personId: string) => {
+              const person = familyTreeData.tree_data.members.find((m: any) => m.id === personId);
+              return person ? person.name : personId; // Fallback to ID if person not found
+            }).filter(Boolean);
+            
+            // Keep original people_involved for filtering, but add resolved names
+            return { 
+              ...memory, 
+              people_involved: peopleNames.length > 0 ? peopleNames : peopleInvolved
+            };
+          }
+          
+          return memory;
+        });
+        
+        setMemories(memoriesWithPeople);
+        console.log(`✅ VaultPage: Loaded ${memoriesWithPeople.length} memories for ${user.email}`);
         
         // 🎬 DEBUG: Check if memories have files array
         userMemories.forEach((memory, idx) => {
@@ -395,8 +425,38 @@ export const VaultPage: React.FC<VaultPageProps> = ({ user, family, onNavigate }
         // 🚀 DATABASE-FIRST: Reload memories from database (with localStorage fallback)
         console.log(`🔄 VaultPage: Reloading memories from database for family ${currentFamily.id}`);
         const userMemories = await DatabaseService.getFamilyMemories(currentFamily.id);
-        setMemories(userMemories);
-        console.log(`✅ VaultPage: Successfully reloaded ${userMemories.length} memories!`);
+        
+        // ✅ NEW: Load family tree to resolve people IDs → names
+        let familyTreeData: any = null;
+        try {
+          familyTreeData = await DatabaseService.getFamilyTree(currentFamily.id);
+        } catch (error) {
+          console.warn('⚠️ VaultPage: Could not load family tree for people resolution:', error);
+        }
+        
+        // ✅ NEW: Transform memories to include people names instead of just IDs
+        const memoriesWithPeople = userMemories.map((memory: any) => {
+          const peopleInvolved = memory.people_involved || memory.people_ids || memory.person_tags || [];
+          
+          if (peopleInvolved.length > 0 && familyTreeData?.tree_data?.members) {
+            // Resolve person IDs to names from family tree
+            const peopleNames = peopleInvolved.map((personId: string) => {
+              const person = familyTreeData.tree_data.members.find((m: any) => m.id === personId);
+              return person ? person.name : personId; // Fallback to ID if person not found
+            }).filter(Boolean);
+            
+            // Keep original people_involved for filtering, but add resolved names
+            return { 
+              ...memory, 
+              people_involved: peopleNames.length > 0 ? peopleNames : peopleInvolved
+            };
+          }
+          
+          return memory;
+        });
+        
+        setMemories(memoriesWithPeople);
+        console.log(`✅ VaultPage: Successfully reloaded ${memoriesWithPeople.length} memories!`);
         
         // Update tags list
         const uniqueTags = new Set<string>();

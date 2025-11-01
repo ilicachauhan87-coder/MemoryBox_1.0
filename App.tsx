@@ -869,7 +869,7 @@ const NewUserHomeWrapper = () => {
     // NEW: Handle dynamic pregnancy book routes (book-pregnancy-{childId})
     if (page.startsWith('book-pregnancy-')) {
       const childId = page.replace('book-pregnancy-', '');
-      const route = `/vault/book/pregnancy-${childId}`;
+      const route = `/vault/book/pregnancy/${childId}`;
       console.log(`📍 Navigating to pregnancy book for child: ${childId}`);
       navigate(route);
       return;
@@ -1788,7 +1788,7 @@ const MemoryUploadPageWrapper = () => {
     // NEW: Handle dynamic pregnancy book routes (book-pregnancy-{childId})
     if (page.startsWith('book-pregnancy-')) {
       const childId = page.replace('book-pregnancy-', '');
-      const route = `/vault/book/pregnancy-${childId}`;
+      const route = `/vault/book/pregnancy/${childId}`;
       console.log(`📍 Navigating to pregnancy book for child: ${childId}`);
       navigate(route);
       return;
@@ -2341,10 +2341,13 @@ const BookOfLifePregnancyWrapper = () => {
         localStorage.setItem('current_user_id', currentUserId);
         localStorage.setItem(`user:${currentUserId}:profile`, JSON.stringify(userData));
         
-        // NEW: Extract child_id from URL path (format: /vault/book/pregnancy-{childId})
-        const pathMatch = location.pathname.match(/\/vault\/book\/pregnancy-(.+)/);
+        // NEW: Extract child_id from URL path (format: /vault/book/pregnancy/{childId})
+        const pathMatch = location.pathname.match(/\/vault\/book\/pregnancy\/(.+)/);
         const extractedChildId = pathMatch ? pathMatch[1] : undefined;
         setChildId(extractedChildId);
+        
+        console.log('🔍 BookOfLifePregnancyWrapper: URL path:', location.pathname);
+        console.log('🔍 BookOfLifePregnancyWrapper: Extracted child ID:', extractedChildId);
         
         // Load memories from database
         if (userData.family_id) {
@@ -2611,7 +2614,7 @@ const ReturningUserHomeWrapper = () => {
     // NEW: Handle dynamic pregnancy book routes (book-pregnancy-{childId})
     if (page.startsWith('book-pregnancy-')) {
       const childId = page.replace('book-pregnancy-', '');
-      const route = `/vault/book/pregnancy-${childId}`;
+      const route = `/vault/book/pregnancy/${childId}`;
       console.log(`📍 Navigating to pregnancy book for child: ${childId}`);
       navigate(route);
       return;

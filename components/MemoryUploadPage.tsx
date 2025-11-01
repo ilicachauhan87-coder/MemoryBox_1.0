@@ -1012,47 +1012,59 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
     }
   }, [isEditMode, memoryToEdit]);
   
-  // 🆕 Listen for editMemory event from VaultPage and BookOfLifeViewer
+  // 🎯 CRITICAL FIX: Load edit context from localStorage on mount
+  // Previous approach used custom events which failed because event was dispatched BEFORE listener was set up
+  // localStorage ensures data is available when component mounts
   useEffect(() => {
-    const handleEditMemory = (event: any) => {
-      // 🔧 ENHANCED: Support both old format (just memory) and new format (editMemory + milestoneContext)
-      const eventData = event.detail;
-      const memory = eventData.memory || eventData.editMemory;
-      const context = eventData.milestoneContext;
-      
-      console.log('📡 Received editMemory event:', {
-        hasMemory: !!memory,
-        hasMilestoneContext: !!context,
-        memoryId: memory?.id,
-        journeyType: context?.journeyType,
-        filesCount: memory?.files?.length || 0
-      });
-      
-      console.log('📡 Category fields in received memory:', {
-        category: memory?.category,
-        memory_type: memory?.memory_type,
-        memory_category: memory?.memory_category
-      });
-      
-      // Update memoryToEdit state to trigger re-population
-      setMemoryToEdit(memory);
-      
-      // 🚀 NEW: If milestone context provided (from Book of Life), also set journey context
-      // This ensures journey-specific fields (like child selector for pregnancy) are pre-populated
-      if (context) {
-        console.log('🎯 Setting journey context from Book of Life edit:', context);
-        // Use the same navigation state mechanism that journey pages use
-        window.history.replaceState(
-          { ...window.history.state, milestoneContext: context },
-          ''
-        );
-        // Force a re-render by updating location state reference
-        window.dispatchEvent(new PopStateEvent('popstate'));
+    try {
+      const editContextStr = localStorage.getItem('memorybox_edit_context');
+      if (editContextStr) {
+        const editData = JSON.parse(editContextStr);
+        
+        // Check timestamp to prevent stale data (only use if less than 30 seconds old)
+        const age = Date.now() - (editData.timestamp || 0);
+        if (age < 30000) {
+          console.log('📡 Loading edit context from localStorage:', {
+            hasMemory: !!editData.editMemory,
+            hasMilestoneContext: !!editData.milestoneContext,
+            memoryId: editData.editMemory?.id,
+            journeyType: editData.milestoneContext?.journeyType,
+            filesCount: editData.editMemory?.files?.length || 0,
+            age: age + 'ms'
+          });
+          
+          const memory = editData.editMemory;
+          const context = editData.milestoneContext;
+          
+          console.log('📡 Category fields in memory:', {
+            category: memory?.category,
+            memory_type: memory?.memory_type,
+            memory_category: memory?.memory_category
+          });
+          
+          // Update memoryToEdit state to trigger re-population
+          setMemoryToEdit(memory);
+          
+          // Set journey context if provided (from Book of Life)
+          if (context) {
+            console.log('🎯 Setting journey context from Book of Life edit:', context);
+            window.history.replaceState(
+              { ...window.history.state, milestoneContext: context },
+              ''
+            );
+          }
+          
+          // Clear the edit context to prevent reuse
+          localStorage.removeItem('memorybox_edit_context');
+        } else {
+          console.log('⚠️ Edit context too old (' + age + 'ms), ignoring');
+          localStorage.removeItem('memorybox_edit_context');
+        }
       }
-    };
-
-    window.addEventListener('editMemory', handleEditMemory);
-    return () => window.removeEventListener('editMemory', handleEditMemory);
+    } catch (error) {
+      console.error('Failed to load edit context:', error);
+      localStorage.removeItem('memorybox_edit_context');
+    }
   }, []);
 
   // 🐛 DEBUG: Track selectedCategory state changes

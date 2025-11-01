@@ -2192,9 +2192,56 @@ const BookOfLifeCoupleWrapper = () => {
               console.warn('⚠️ BookOfLifeCoupleWrapper: Could not load family tree:', error);
             }
             
-            // ✅ ROBUST FIX: Transform memories to include people names
-            const memoriesWithPeople = coupleMemories.map((memory: any) => {
-              const peopleInvolved = memory.people_involved || memory.people_ids || memory.person_tags || [];
+            // 🔧 NEW: Refresh file URLs for multimedia (get fresh public URLs from Supabase Storage)
+            const refreshMemoryFileUrls = async (memory: any) => {
+              if (!memory.files || memory.files.length === 0) return memory;
+              
+              try {
+                const supabase = getSupabaseClient();
+                const bucket = 'make-2544f7d4-memory-files';
+                
+                const filesWithFreshUrls = await Promise.all(
+                  memory.files.map(async (file: any) => {
+                    if (!file.storage_path) {
+                      // File doesn't have storage path, return as-is (might be old format with direct URL)
+                      return file;
+                    }
+                    
+                    try {
+                      // Get fresh public URL from storage path
+                      const { data } = supabase.storage
+                        .from(bucket)
+                        .getPublicUrl(file.storage_path);
+                      
+                      if (data?.publicUrl) {
+                        return {
+                          ...file,
+                          url: data.publicUrl // Refresh URL
+                        };
+                      }
+                      
+                      return file; // Return original if refresh fails
+                    } catch (error) {
+                      console.warn(`⚠️ Could not refresh URL for file:`, file.name, error);
+                      return file; // Return original on error
+                    }
+                  })
+                );
+                
+                return { ...memory, files: filesWithFreshUrls };
+              } catch (error) {
+                console.warn(`⚠️ Could not refresh file URLs for memory "${memory.title}":`, error);
+                return memory; // Return original memory on error
+              }
+            };
+            
+            // ✅ ROBUST FIX: Transform memories to include people names AND fresh file URLs
+            const memoriesWithPeopleAndFiles = await Promise.all(
+              coupleMemories.map(async (memory: any) => {
+                // First, refresh file URLs
+                const memoryWithFreshFiles = await refreshMemoryFileUrls(memory);
+                
+                const peopleInvolved = memoryWithFreshFiles.people_involved || memoryWithFreshFiles.people_ids || memoryWithFreshFiles.person_tags || [];
               
               // 🔧 CRITICAL FIX: getFamilyTree() returns { people: [...], relationships: [...] }
               // NOT { tree_data: { members: [...] } }
@@ -2221,21 +2268,22 @@ const BookOfLifeCoupleWrapper = () => {
                   return null;
                 }).filter(Boolean);
                 
-                return { ...memory, people };
+                return { ...memoryWithFreshFiles, people };
               }
               
-              return { ...memory, people: [] };
-            });
+              return { ...memoryWithFreshFiles, people: [] };
+            })
+            );
             
-            setMemories(memoriesWithPeople);
+            setMemories(memoriesWithPeopleAndFiles);
             
             // 🔍 DIAGNOSTIC: Log transformation results
-            const successfulTransforms = memoriesWithPeople.filter(m => m.people && m.people.length > 0).length;
-            console.log(`✅ BookOfLifeCoupleWrapper: Loaded ${memoriesWithPeople.length} couple memories`);
-            console.log(`   📊 People Display Status: ${successfulTransforms}/${memoriesWithPeople.length} memories have resolved people names`);
+            const successfulTransforms = memoriesWithPeopleAndFiles.filter(m => m.people && m.people.length > 0).length;
+            console.log(`✅ BookOfLifeCoupleWrapper: Loaded ${memoriesWithPeopleAndFiles.length} couple memories`);
+            console.log(`   📊 People Display Status: ${successfulTransforms}/${memoriesWithPeopleAndFiles.length} memories have resolved people names`);
             
-            if (successfulTransforms < memoriesWithPeople.length) {
-              const failed = memoriesWithPeople.filter(m => !m.people || m.people.length === 0);
+            if (successfulTransforms < memoriesWithPeopleAndFiles.length) {
+              const failed = memoriesWithPeopleAndFiles.filter(m => !m.people || m.people.length === 0);
               console.log(`   ⚠️ Memories without people:`, failed.map(m => ({ 
                 title: m.title, 
                 people_involved: m.people_involved,
@@ -2431,9 +2479,56 @@ const BookOfLifePregnancyWrapper = () => {
               console.warn('⚠️ BookOfLifePregnancyWrapper: Could not load family tree:', error);
             }
             
-            // ✅ ROBUST FIX: Transform memories to include people names
-            const memoriesWithPeople = pregnancyMemories.map((memory: any) => {
-              const peopleInvolved = memory.people_involved || memory.people_ids || memory.person_tags || [];
+            // 🔧 NEW: Refresh file URLs for multimedia (get fresh public URLs from Supabase Storage)
+            const refreshMemoryFileUrls = async (memory: any) => {
+              if (!memory.files || memory.files.length === 0) return memory;
+              
+              try {
+                const supabase = getSupabaseClient(); // ✅ FIX: Add missing supabase declaration
+                const bucket = 'make-2544f7d4-memory-files';
+                
+                const filesWithFreshUrls = await Promise.all(
+                  memory.files.map(async (file: any) => {
+                    if (!file.storage_path) {
+                      // File doesn't have storage path, return as-is (might be old format with direct URL)
+                      return file;
+                    }
+                    
+                    try {
+                      // Get fresh public URL from storage path
+                      const { data } = supabase.storage
+                        .from(bucket)
+                        .getPublicUrl(file.storage_path);
+                      
+                      if (data?.publicUrl) {
+                        return {
+                          ...file,
+                          url: data.publicUrl // Refresh URL
+                        };
+                      }
+                      
+                      return file; // Return original if refresh fails
+                    } catch (error) {
+                      console.warn(`⚠️ Could not refresh URL for file:`, file.name, error);
+                      return file; // Return original on error
+                    }
+                  })
+                );
+                
+                return { ...memory, files: filesWithFreshUrls };
+              } catch (error) {
+                console.warn(`⚠️ Could not refresh file URLs for memory "${memory.title}":`, error);
+                return memory; // Return original memory on error
+              }
+            };
+            
+            // ✅ ROBUST FIX: Transform memories to include people names AND fresh file URLs
+            const memoriesWithPeopleAndFiles = await Promise.all(
+              pregnancyMemories.map(async (memory: any) => {
+                // First, refresh file URLs
+                const memoryWithFreshFiles = await refreshMemoryFileUrls(memory);
+                
+                const peopleInvolved = memoryWithFreshFiles.people_involved || memoryWithFreshFiles.people_ids || memoryWithFreshFiles.person_tags || [];
               
               // 🔧 CRITICAL FIX: getFamilyTree() returns { people: [...], relationships: [...] }
               // NOT { tree_data: { members: [...] } }
@@ -2460,21 +2555,22 @@ const BookOfLifePregnancyWrapper = () => {
                   return null;
                 }).filter(Boolean);
                 
-                return { ...memory, people };
+                return { ...memoryWithFreshFiles, people };
               }
               
-              return { ...memory, people: [] };
-            });
+              return { ...memoryWithFreshFiles, people: [] };
+            })
+            );
             
-            setMemories(memoriesWithPeople);
+            setMemories(memoriesWithPeopleAndFiles);
             
             // 🔍 DIAGNOSTIC: Log transformation results
-            const successfulTransforms = memoriesWithPeople.filter(m => m.people && m.people.length > 0).length;
-            console.log(`✅ BookOfLifePregnancyWrapper: Loaded ${memoriesWithPeople.length} pregnancy memories`);
-            console.log(`   📊 People Display Status: ${successfulTransforms}/${memoriesWithPeople.length} memories have resolved people names`);
+            const successfulTransforms = memoriesWithPeopleAndFiles.filter(m => m.people && m.people.length > 0).length;
+            console.log(`✅ BookOfLifePregnancyWrapper: Loaded ${memoriesWithPeopleAndFiles.length} pregnancy memories`);
+            console.log(`   📊 People Display Status: ${successfulTransforms}/${memoriesWithPeopleAndFiles.length} memories have resolved people names`);
             
-            if (successfulTransforms < memoriesWithPeople.length) {
-              const failed = memoriesWithPeople.filter(m => !m.people || m.people.length === 0);
+            if (successfulTransforms < memoriesWithPeopleAndFiles.length) {
+              const failed = memoriesWithPeopleAndFiles.filter(m => !m.people || m.people.length === 0);
               console.log(`   ⚠️ Memories without people:`, failed.map(m => ({ 
                 title: m.title, 
                 people_involved: m.people_involved,

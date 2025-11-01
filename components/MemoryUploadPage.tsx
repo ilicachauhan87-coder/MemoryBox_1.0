@@ -89,6 +89,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { formatDateForDisplay, formatDateForStorage, isValidDDMMYYYY, formatDateInput } from '../utils/dateHelpers';
+import { PregnancyChildSelector } from './PregnancyChildSelector';
 
 interface MemoryCategory {
   id: string;
@@ -692,6 +693,13 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
   const [isLoadingFamilyMembers, setIsLoadingFamilyMembers] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false); // Track if any dropdown is open
   const [isCategoryOpen, setIsCategoryOpen] = useState(false); // Track if category selector is open
+  
+  // 👶 NEW: Pregnancy child selection for linking memories to specific children
+  const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+  
+  // 🎯 NEW: Preserve original journeyType when editing memories (couple/pregnancy)
+  // This ensures memories stay in their Book of Life even when edited from regular Vault
+  const [originalJourneyType, setOriginalJourneyType] = useState<string | undefined>(undefined);
 
   // Note: Storage monitoring removed - using Supabase Storage now
   // const [storageInfo, setStorageInfo] = useState<any>(null);
@@ -759,6 +767,21 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
         milestoneContext.milestoneTitle
       ];
       setGeneralTags(journeyTags);
+      
+      // 👶 FIX: Pre-select child for pregnancy journey
+      // Priority: 1) editingMemory.child_id (from edit flow), 2) milestoneContext.childId (from add flow)
+      if (milestoneContext.journeyType === 'pregnancy') {
+        const childIdFromEdit = milestoneContext.editingMemory?.child_id;
+        const childIdFromMilestone = milestoneContext.childId;
+        const childIdToUse = childIdFromEdit || childIdFromMilestone;
+        
+        if (childIdToUse) {
+          console.log('👶 Pre-selecting child from milestone context:', childIdToUse, {
+            source: childIdFromEdit ? 'editingMemory' : 'milestoneContext'
+          });
+          setSelectedChildId(childIdToUse);
+        }
+      }
       
       // Pre-select suggested memory formats
       if (milestoneContext.suggestedTypes && milestoneContext.suggestedTypes.length > 0) {
@@ -900,7 +923,20 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
       
       // Pre-fill tags and people
       setGeneralTags(memoryToEdit.tags || []);
-      setPeopleInMemory(memoryToEdit.people_involved || memoryToEdit.person_tags || []);
+      
+      // 🔧 CRITICAL FIX: Convert names to IDs (database has names, dropdown needs IDs)
+      const peopleNames = memoryToEdit.people_involved || memoryToEdit.person_tags || [];
+      const peopleIds = peopleNames.map((personName: string) => {
+        const member = familyMembers.find(m => m.name === personName);
+        return member ? member.id : personName; // Fallback to name if ID not found
+      });
+      console.log('👥 EDIT MODE: Converting people names → IDs:', {
+        fromDatabase: peopleNames,
+        converted: peopleIds,
+        willDisplay: peopleIds.length + ' people selected'
+      });
+      setPeopleInMemory(peopleIds);
+      
       setEmotionTags(memoryToEdit.emotionTags || memoryToEdit.emotion_tags || []);
       
       // Pre-fill privacy settings
@@ -910,6 +946,31 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
       // Pre-fill format/type
       const memoryType = memoryToEdit.type || memoryToEdit.format || memoryToEdit.memory_type || 'photo';
       setSelectedFormats([memoryType]);
+      
+      // 👶 NEW: Load child_id for pregnancy memories
+      if (memoryToEdit.child_id) {
+        console.log('👶 Loading child_id for pregnancy memory:', memoryToEdit.child_id);
+        setSelectedChildId(memoryToEdit.child_id);
+      }
+      
+      // 🎯 CRITICAL FIX: Preserve original journeyType (couple/pregnancy) when editing
+      // This ensures the memory stays in its Book of Life even when edited from regular Vault
+      // 🔧 FIX: Check BOTH camelCase (journeyType) AND snake_case (journey_type) for database compatibility
+      const journeyTypeFromDb = memoryToEdit.journeyType || memoryToEdit.journey_type;
+      if (journeyTypeFromDb) {
+        console.log('🎯 Preserving original journeyType:', journeyTypeFromDb, 
+          `(from ${memoryToEdit.journeyType ? 'journeyType' : 'journey_type'} field)`);
+        setOriginalJourneyType(journeyTypeFromDb);
+        
+        // 🔧 FIX: If it's a pregnancy journey, also preserve/load child_id
+        if (journeyTypeFromDb === 'pregnancy' && memoryToEdit.child_id) {
+          console.log('👶 Also loading child_id for pregnancy journey:', memoryToEdit.child_id);
+          setSelectedChildId(memoryToEdit.child_id);
+        }
+      } else {
+        // Reset if editing a regular memory
+        setOriginalJourneyType(undefined);
+      }
       
       // 🔧 CRITICAL FIX: Load existing files from memory
       const files = memoryToEdit.files || [];
@@ -1014,7 +1075,8 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
           console.log(`✅ MemoryUploadPage: Using ${propFamilyMembers.length} family members from prop (family tree)`);
           setFamilyMembers(propFamilyMembers);
           
-          if (!peopleInMemory.includes(user.name)) {
+          // 🔧 FIX: Only set default root user if peopleInMemory is empty AND not in edit mode
+          if (!isEditMode && peopleInMemory.length === 0 && !peopleInMemory.includes(user.name)) {
             setPeopleInMemory([user.name]);
           }
 
@@ -1038,7 +1100,8 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
           ];
           setFamilyMembers(demoMembers);
           
-          if (!peopleInMemory.includes(user.name)) {
+          // 🔧 FIX: Only set default root user if peopleInMemory is empty AND not in edit mode
+          if (!isEditMode && peopleInMemory.length === 0 && !peopleInMemory.includes(user.name)) {
             setPeopleInMemory([user.name]);
           }
 
@@ -1069,7 +1132,8 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
         setFamilyMembers(members);
         console.log(`✅ MemoryUploadPage: Loaded ${members.length} family members from tree fallback`);
         
-        if (members.length > 0 && !peopleInMemory.includes(user.name)) {
+        // 🔧 FIX: Only set default root user if peopleInMemory is empty AND not in edit mode
+        if (!isEditMode && members.length > 0 && peopleInMemory.length === 0 && !peopleInMemory.includes(user.name)) {
           setPeopleInMemory([user.name]);
         }
 
@@ -1090,7 +1154,8 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
         
         setFamilyMembers(fallbackMembers);
         
-        if (user && !peopleInMemory.includes(user.name)) {
+        // 🔧 FIX: Only set default root user if peopleInMemory is empty AND not in edit mode
+        if (!isEditMode && user && peopleInMemory.length === 0 && !peopleInMemory.includes(user.name)) {
           setPeopleInMemory([user.name]);
         }
 
@@ -1844,6 +1909,12 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
       return;
     }
 
+    // 👶 NEW: Validate child selection for pregnancy journeys
+    if (milestoneContext?.journeyType === 'pregnancy' && !selectedChildId) {
+      toast.error('Please select which child this pregnancy memory is for');
+      return;
+    }
+
     try {
       // Calculate total file size and prepare metadata
       const totalFileSize = uploadedFiles.reduce((sum, file) => sum + file.file.size, 0);
@@ -1867,12 +1938,27 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
       const currentTime = StorageManager.getCurrentISOString();
 
       // 🆕 CRITICAL: Extract and log journey type BEFORE creating memory object
-      const extractedJourneyType = milestoneContext?.journeyType || undefined;
+      // 🎯 CRITICAL FIX: Preserve journeyType when editing (couple/pregnancy memories)
+      // Priority: 1) originalJourneyType (from editing), 2) milestoneContext (from adding new)
+      const extractedJourneyType = originalJourneyType || milestoneContext?.journeyType || undefined;
       console.log(`💾 JOURNEY TYPE EXTRACTION:`, {
         milestoneContextExists: !!milestoneContext,
         rawJourneyType: milestoneContext?.journeyType,
         extractedJourneyType: extractedJourneyType,
         willSaveAs: extractedJourneyType ? `"${extractedJourneyType}"` : 'undefined (regular memory)'
+      });
+      
+      // 🐛 CRITICAL DEBUG: Check if peopleInMemory contains IDs vs names mismatch
+      console.log('👥 PEOPLE DATA BEFORE SAVE:', {
+        peopleInMemory,
+        count: peopleInMemory.length,
+        sample: peopleInMemory[0],
+        familyMemberNames,
+        nameSample: familyMemberNames[0],
+        willFilterTo: peopleInMemory.filter(person => familyMemberNames.includes(person)),
+        diagnosis: peopleInMemory.length > 0 && !familyMemberNames.includes(peopleInMemory[0]) 
+          ? 'MISMATCH: peopleInMemory has IDs but filter expects NAMES' 
+          : 'OK: Data types match'
       });
 
       // 🚀 CRITICAL FIX: Upload files to Supabase Storage FIRST, then save URLs to database
@@ -1952,7 +2038,13 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
         
         // 🆕 JOURNEY TYPE: Include journey type from milestone context
         // This is critical for VaultPage filtering (couple journey, pregnancy journey, or regular)
+        // 🔧 FIX: Save BOTH camelCase AND snake_case for database compatibility
         journeyType: extractedJourneyType,
+        journey_type: extractedJourneyType, // Database field (snake_case)
+        
+        // 👶 NEW: CHILD ID - Link pregnancy memories to specific children
+        // This enables separate pregnancy books per child in Memory Vault
+        child_id: extractedJourneyType === 'pregnancy' ? selectedChildId : undefined,
         
         // 🎬 CRITICAL: File and media data - Save STORAGE URLS not base64 previews!
         // This prevents massive JSONB inserts that hang the browser
@@ -1965,8 +2057,23 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
         
         // People and tags
         tags: generalTags,
-        people_involved: peopleInMemory.filter(person => familyMemberNames.includes(person)),
-        person_tags: peopleInMemory.filter(person => familyMemberNames.includes(person)),
+        // 🔧 CRITICAL FIX: Convert IDs to names (peopleInMemory has IDs from dropdown)
+        people_involved: (() => {
+          const names = peopleInMemory.map(personId => {
+            const member = familyMembers.find(m => m.id === personId);
+            return member ? member.name : personId; // Fallback to ID if name not found
+          });
+          console.log('👥 SAVE: Converting people IDs → names:', {
+            fromDropdown: peopleInMemory,
+            converted: names,
+            willSaveToDatabase: names
+          });
+          return names;
+        })(),
+        person_tags: peopleInMemory.map(personId => {
+          const member = familyMembers.find(m => m.id === personId);
+          return member ? member.name : personId; // Fallback to ID if name not found
+        }),
         emotionTags,
         
         // Location and date
@@ -2088,6 +2195,16 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
       }
     };
   }, []);
+
+  // 🐛 DEBUG: Log peopleInMemory state right before render to help debug display issues
+  console.log('👥 PEOPLE IN MEMORY STATE (Before Save):', {
+    peopleInMemory,
+    count: peopleInMemory.length,
+    familyMemberNames: familyMembers.map(m => m.name),
+    familyMembersCount: familyMembers.length,
+    isEditMode,
+    memoryToEdit: memoryToEdit?.title
+  });
 
   if (!user) {
     return (
@@ -2364,6 +2481,16 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
               </div>
             </Collapsible>
           </div>
+
+          {/* 👶 NEW: Child Selection for Pregnancy Journeys */}
+          {milestoneContext?.journeyType === 'pregnancy' && user?.family_id && (
+            <PregnancyChildSelector
+              familyId={user.family_id}
+              selectedChildId={selectedChildId}
+              onChildSelect={setSelectedChildId}
+              required={true}
+            />
+          )}
 
           {/* Section 2: Content Format & Upload - COMBINED */}
           <div className="memory-card p-6">

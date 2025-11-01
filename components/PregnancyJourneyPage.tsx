@@ -1058,7 +1058,7 @@ const DEFAULT_MILESTONES: Milestone[] = [
   }
 ];
 
-export function PregnancyJourneyPage({ userId = 'demo-user', onBack, onCaptureMemory }: PregnancyJourneyPageProps) {
+export function PregnancyJourneyPage({ userId, onBack, onCaptureMemory }: PregnancyJourneyPageProps) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [customMilestones, setCustomMilestones] = useState<Milestone[]>([]);
   const [activePhase, setActivePhase] = useState<string>('pregnancy');
@@ -1377,19 +1377,25 @@ export function PregnancyJourneyPage({ userId = 'demo-user', onBack, onCaptureMe
     if (!userId) return;
     
     try {
-      // Save to DATABASE
+      // Save to DATABASE (database-first - no localStorage fallback)
       const { DatabaseService } = await import('../utils/supabase/persistent-database');
       await DatabaseService.saveJourneyProgress(userId, 'pregnancy', {
         milestones: newMilestones,
         customMilestones
       });
-      console.log(`✅ Saved pregnancy journey to database`);
+      console.log(`✅ pregnancy journey saved to database`);
       
-      // Also cache in localStorage
-      localStorage.setItem(`pregnancy_journey_${userId}`, JSON.stringify(newMilestones));
+      // Cache in localStorage ONLY after successful database save
+      try {
+        localStorage.setItem(`pregnancy_journey_${userId}`, JSON.stringify(newMilestones));
+      } catch (storageError) {
+        // Ignore localStorage errors in incognito mode - database is primary
+        console.log('ℹ️ localStorage cache unavailable (incognito mode) - data saved to database');
+      }
     } catch (error) {
-      console.warn('⚠️ Database save failed, saving to localStorage only:', error);
-      localStorage.setItem(`pregnancy_journey_${userId}`, JSON.stringify(newMilestones));
+      console.error('❌ Failed to save pregnancy journey:', error);
+      toast.error('Failed to save milestone. Please check your connection and try again.');
+      throw error; // Don't silently fail
     }
   };
 
@@ -1400,19 +1406,25 @@ export function PregnancyJourneyPage({ userId = 'demo-user', onBack, onCaptureMe
     if (!userId) return;
     
     try {
-      // Save to DATABASE
+      // Save to DATABASE (database-first - no localStorage fallback)
       const { DatabaseService } = await import('../utils/supabase/persistent-database');
       await DatabaseService.saveJourneyProgress(userId, 'pregnancy', {
         milestones,
         customMilestones: newCustomMilestones
       });
-      console.log(`✅ Saved custom pregnancy journey milestones to database`);
+      console.log(`✅ custom pregnancy journey milestones saved to database`);
       
-      // Also cache in localStorage
-      localStorage.setItem(`pregnancy_journey_custom_${userId}`, JSON.stringify(newCustomMilestones));
+      // Cache in localStorage ONLY after successful database save
+      try {
+        localStorage.setItem(`pregnancy_journey_custom_${userId}`, JSON.stringify(newCustomMilestones));
+      } catch (storageError) {
+        // Ignore localStorage errors in incognito mode - database is primary
+        console.log('ℹ️ localStorage cache unavailable (incognito mode) - data saved to database');
+      }
     } catch (error) {
-      console.warn('⚠️ Database save failed, saving to localStorage only:', error);
-      localStorage.setItem(`pregnancy_journey_custom_${userId}`, JSON.stringify(newCustomMilestones));
+      console.error('❌ Failed to save custom pregnancy journey:', error);
+      toast.error('Failed to save custom milestone. Please check your connection and try again.');
+      throw error; // Don't silently fail
     }
   };
 

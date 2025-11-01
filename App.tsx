@@ -2691,6 +2691,7 @@ const CoupleJourneyWrapper = () => {
   const [user, setUser] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState('journey-selection');
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
 
   useEffect(() => {
     const currentUserId = localStorage.getItem('current_user_id');
@@ -2699,6 +2700,7 @@ const CoupleJourneyWrapper = () => {
       if (userProfile) {
         const userData = JSON.parse(userProfile);
         setUser(userData);
+        setIsLoadingUser(false);
         
         if (userData.family_id) {
           const memoriesData = localStorage.getItem(`family:${userData.family_id}:memories`);
@@ -2713,7 +2715,11 @@ const CoupleJourneyWrapper = () => {
             setUnreadCount(recentCount);
           }
         }
+      } else {
+        setIsLoadingUser(false);
       }
+    } else {
+      setIsLoadingUser(false);
     }
   }, []);
 
@@ -2784,6 +2790,18 @@ const CoupleJourneyWrapper = () => {
     }
   };
 
+  // Wait for user to load before rendering journey page
+  if (isLoadingUser || !user) {
+    return (
+      <div className="min-h-screen bg-cream flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet mx-auto mb-4"></div>
+          <p className="text-ink">Loading your journey...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <TopNavigationBar 
@@ -2792,7 +2810,7 @@ const CoupleJourneyWrapper = () => {
       />
       <div className="pt-16">
         <CoupleJourneyPage 
-          userId={user?.id}
+          userId={user.id}
           onBack={handleBack}
           onCaptureMemory={handleCaptureMemory}
         />
@@ -2813,6 +2831,7 @@ const PregnancyJourneyWrapper = () => {
   const [user, setUser] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState('journey-selection');
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
 
   useEffect(() => {
     const currentUserId = localStorage.getItem('current_user_id');
@@ -2821,6 +2840,7 @@ const PregnancyJourneyWrapper = () => {
       if (userProfile) {
         const userData = JSON.parse(userProfile);
         setUser(userData);
+        setIsLoadingUser(false);
         
         if (userData.family_id) {
           const memoriesData = localStorage.getItem(`family:${userData.family_id}:memories`);
@@ -2835,7 +2855,11 @@ const PregnancyJourneyWrapper = () => {
             setUnreadCount(recentCount);
           }
         }
+      } else {
+        setIsLoadingUser(false);
       }
+    } else {
+      setIsLoadingUser(false);
     }
   }, []);
 
@@ -2906,6 +2930,18 @@ const PregnancyJourneyWrapper = () => {
     }
   };
 
+  // Wait for user to load before rendering journey page
+  if (isLoadingUser || !user) {
+    return (
+      <div className="min-h-screen bg-cream flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet mx-auto mb-4"></div>
+          <p className="text-ink">Loading your journey...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <TopNavigationBar 
@@ -2914,7 +2950,7 @@ const PregnancyJourneyWrapper = () => {
       />
       <div className="pt-16">
         <PregnancyJourneyPage 
-          userId={user?.id}
+          userId={user.id}
           onBack={handleBack}
           onCaptureMemory={handleCaptureMemory}
         />

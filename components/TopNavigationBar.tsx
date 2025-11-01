@@ -67,14 +67,19 @@ export function TopNavigationBar({ user, onNavigate, showBackButton, title }: To
       <div className="flex items-center justify-between px-4 py-3 top-nav-safe max-w-7xl mx-auto">
         {/* Left: Logo/Branding */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2">
+          <button 
+            onClick={() => onNavigate('home')}
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity active:scale-95 touch-manipulation cursor-pointer"
+            style={{ minHeight: '48px' }}
+            aria-label="Go to Home"
+          >
             <div className="p-3 bg-gradient-to-br from-primary to-secondary rounded-2xl shadow-lg">
               <Heart className="w-8 h-8 text-white" />
             </div>
             <span className="font-semibold text-violet text-lg sm:text-xl">
               {title || 'MemoryBox'}
             </span>
-          </div>
+          </button>
         </div>
         
         {/* Right: Profile Avatar */}

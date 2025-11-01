@@ -130,9 +130,10 @@ export const BookOfLifeViewer: React.FC<BookOfLifeViewerProps> = ({
       childId: (memory as any).child_id
     });
     
-    // 🚀 ENHANCED FIX: Direct navigation to upload page with complete context
-    // This ensures multimedia files are properly pre-populated in edit mode
-    const editContext = {
+    // 🎯 CRITICAL FIX: Store edit data in localStorage BEFORE navigation
+    // This ensures MemoryUploadPage can access it even before component mounts
+    // Custom events don't work because they're dispatched before listener is set up
+    const editData = {
       editMemory: memory,
       milestoneContext: {
         journeyType: journeyType,
@@ -141,14 +142,16 @@ export const BookOfLifeViewer: React.FC<BookOfLifeViewerProps> = ({
         editingMemory: memory, // Full memory object with all multimedia files
         childId: (memory as any).child_id, // For pregnancy journeys
         isEditMode: true // Flag to indicate edit mode
-      }
+      },
+      timestamp: Date.now() // Prevent stale data
     };
     
-    // Dispatch custom event for MemoryUploadPage to handle
-    // This works better than localStorage for complex objects with files
-    window.dispatchEvent(new CustomEvent('editMemory', { 
-      detail: editContext 
-    }));
+    try {
+      localStorage.setItem('memorybox_edit_context', JSON.stringify(editData));
+      console.log('✅ Saved edit context to localStorage:', editData);
+    } catch (error) {
+      console.error('Failed to save edit context:', error);
+    }
     
     // Navigate to upload page
     onNavigate('upload-memory');

@@ -3673,6 +3673,7 @@ const App: React.FC = () => {
           <ScrollToTop />
           <Toaster position="top-center" richColors />
           <FeedbackWidget />
+          <FigmaMakeBanner />
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public routes - No authentication required */}

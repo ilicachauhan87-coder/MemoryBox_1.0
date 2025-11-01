@@ -476,7 +476,28 @@ export const AdminDashboardPage: React.FC = () => {
                             )}
                           </td>
                           <td className="p-2 text-xs text-muted-foreground">
-                            {new Date(user.last_active_at).toLocaleDateString()}
+                            {(() => {
+                              // Safe date formatting - handle invalid/null dates
+                              if (!user.last_active_at) return 'Never';
+                              
+                              const date = new Date(user.last_active_at);
+                              const timestamp = date.getTime();
+                              
+                              // Check if date is invalid or Unix epoch (1/1/1970)
+                              if (isNaN(timestamp) || timestamp === 0 || timestamp < 86400000) {
+                                return 'Never';
+                              }
+                              
+                              // Check if date is "today" or recent
+                              const now = new Date();
+                              const daysDiff = Math.floor((now.getTime() - timestamp) / (1000 * 60 * 60 * 24));
+                              
+                              if (daysDiff === 0) return 'Today';
+                              if (daysDiff === 1) return 'Yesterday';
+                              if (daysDiff < 7) return `${daysDiff} days ago`;
+                              
+                              return date.toLocaleDateString();
+                            })()}
                           </td>
                         </tr>
                       ))

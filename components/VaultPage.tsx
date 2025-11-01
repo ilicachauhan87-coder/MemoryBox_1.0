@@ -809,6 +809,15 @@ export const VaultPage: React.FC<VaultPageProps> = ({ user, family, onNavigate }
           onNavigate={onNavigate}
         />
 
+        {/* Memory Collection Section Title */}
+        <div className="text-center space-y-2 pt-4">
+          <h2 className="text-2xl font-semibold text-primary flex items-center justify-center gap-2">
+            <Sparkles className="h-6 w-6 text-primary" />
+            Memory Collection
+          </h2>
+          <p className="text-sm text-muted-foreground">All your family memories in one place</p>
+        </div>
+
         {/* Search & View Mode Controls */}
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full">
           <div className="flex-1 relative min-w-0">
@@ -1328,7 +1337,7 @@ export const VaultPage: React.FC<VaultPageProps> = ({ user, family, onNavigate }
                     handleMemoryClick(memory);
                   }}
                 >
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-3 relative">
                     <div className="flex items-start space-x-2">
                       <div className={`p-2 rounded-lg ${memoryType.iconBg} flex-shrink-0`}>
                         <memoryType.icon className="w-4 h-4 text-white" />
@@ -1337,52 +1346,40 @@ export const VaultPage: React.FC<VaultPageProps> = ({ user, family, onNavigate }
                         {/* Title - Full width, can wrap to multiple lines */}
                         <CardTitle className="text-lg leading-snug break-words">{memory.title}</CardTitle>
                         
-                        {/* Bottom row: Timestamp + Badges + Buttons */}
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-sm text-muted-foreground whitespace-nowrap">
-                              {formatRelativeTime(memory.created_at)}
+                        {/* Date Display - Actual formatted date */}
+                        {memory.memory_date && (
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(memory.memory_date).toLocaleDateString('en-US', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                              })}
                             </p>
-                            
-                            {/* 🎬 DEBUG BADGE: Show files count */}
-                            {memory.files && memory.files.length > 0 && (
-                              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 flex-shrink-0">
-                                {memory.files.length} files
-                              </Badge>
-                            )}
-                            {!memory.files && memory.file_url && (
-                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200 flex-shrink-0">
-                                legacy
-                              </Badge>
-                            )}
-                            {!memory.files && !memory.file_url && (
-                              <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200 flex-shrink-0">
-                                no media
-                              </Badge>
-                            )}
                           </div>
-                          
-                          {/* Edit/Delete buttons - Always visible on right */}
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0 text-violet hover:text-violet hover:bg-violet/10"
-                              onClick={(e) => handleEditMemory(memory, e)}
-                              title="Edit memory"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={(e) => handleDeleteMemory(memory, e)}
-                              title="Delete memory"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                        )}
+                        
+                        {/* Edit/Delete buttons - Always visible on right */}
+                        <div className="flex items-center justify-end gap-1 absolute top-3 right-3">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0 text-violet hover:text-violet hover:bg-violet/10"
+                            onClick={(e) => handleEditMemory(memory, e)}
+                            title="Edit memory"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={(e) => handleDeleteMemory(memory, e)}
+                            title="Delete memory"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -1517,29 +1514,65 @@ export const VaultPage: React.FC<VaultPageProps> = ({ user, family, onNavigate }
                       )
                     )}
                     
-                    {/* People and location */}
-                    <div className="space-y-2">
+                    {/* Memory Details - Category, People, Location, Tags, Emotions */}
+                    <div className="space-y-2.5">
+                      {/* Category Display */}
+                      {memory.category && (() => {
+                        const categoryInfo = MEMORY_CATEGORIES.find(c => c.id === memory.category);
+                        if (categoryInfo) {
+                          const Icon = categoryInfo.icon;
+                          return (
+                            <div className="flex items-center gap-1.5">
+                              <Icon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                              <span className="text-xs text-muted-foreground font-medium">
+                                {categoryInfo.label}
+                              </span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                      
+                      {/* People Involved - FULL LIST (No truncation) */}
                       {memory.people_involved && memory.people_involved.length > 0 && (
-                        <div className="flex items-center space-x-1 min-w-0">
-                          <Users className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                          <span className="text-xs text-muted-foreground truncate">
-                            {memory.people_involved.slice(0, 2).join(', ')}
-                            {memory.people_involved.length > 2 && ` +${memory.people_involved.length - 2}`}
-                          </span>
+                        <div className="flex items-start gap-1.5">
+                          <Users className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <span className="text-xs text-muted-foreground break-words">
+                              {memory.people_involved.join(', ')}
+                            </span>
+                          </div>
                         </div>
                       )}
                       
+                      {/* Location */}
                       {memory.location && (
-                        <div className="flex items-center space-x-1 min-w-0">
-                          <MapPin className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                           <span className="text-xs text-muted-foreground truncate">{memory.location}</span>
                         </div>
                       )}
                       
-                      {/* 🆕 Emotions Display */}
+                      {/* Tags Display - FULL LIST */}
+                      {memory.tags && memory.tags.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          {memory.tags.map((tag: string, idx: number) => (
+                            <Badge 
+                              key={idx} 
+                              variant="outline"
+                              className="text-xs px-2 py-0.5 bg-cream border-violet/30 text-violet"
+                            >
+                              <TagIcon className="w-3 h-3 mr-1" />
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* Emotions Display - FULL LIST */}
                       {memory.emotionTags && memory.emotionTags.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-1.5 min-w-0 pt-1">
-                          {memory.emotionTags.slice(0, 3).map((emotion: string, idx: number) => {
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          {memory.emotionTags.map((emotion: string, idx: number) => {
                             const predefinedEmotion = PREDEFINED_EMOTIONS.find(e => e.name === emotion);
                             
                             if (predefinedEmotion) {
@@ -1568,11 +1601,6 @@ export const VaultPage: React.FC<VaultPageProps> = ({ user, family, onNavigate }
                               );
                             }
                           })}
-                          {memory.emotionTags.length > 3 && (
-                            <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-muted text-muted-foreground border-0">
-                              +{memory.emotionTags.length - 3}
-                            </Badge>
-                          )}
                         </div>
                       )}
                     </div>

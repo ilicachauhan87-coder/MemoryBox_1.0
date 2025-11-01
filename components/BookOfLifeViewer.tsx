@@ -357,7 +357,29 @@ export const BookOfLifeViewer: React.FC<BookOfLifeViewerProps> = ({
                         onClick={() => handleMemoryClick(memory)}
                       >
                         {/* Memory Card */}
-                        <Card className="border-2 hover:border-violet transition-all hover:shadow-lg">
+                        <Card className="border-2 hover:border-violet transition-all hover:shadow-lg relative">
+                          {/* Floating Action Buttons - Top Right Corner */}
+                          <div className="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => handleEditMemory(memory, e)}
+                              className="text-violet hover:bg-violet/20 bg-white/90 backdrop-blur-sm shadow-md h-8 w-8 p-0"
+                              title="Edit Memory"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => handleDeleteMemory(memory, e)}
+                              className="text-destructive hover:bg-destructive/20 bg-white/90 backdrop-blur-sm shadow-md h-8 w-8 p-0"
+                              title="Delete Memory"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          
                           <CardContent className="p-4">
                             {/* Media Preview */}
                             {memory.files && memory.files.length > 0 && (
@@ -415,39 +437,73 @@ export const BookOfLifeViewer: React.FC<BookOfLifeViewerProps> = ({
                               )}
                             </div>
 
-                            {/* Metadata */}
-                            <div className="flex flex-wrap items-center gap-2 mt-3 text-xs text-muted-foreground">
-                              <div className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
-                                <span>{formatDate(memory.created_at)}</span>
+                            {/* Complete Metadata - All Details */}
+                            <div className="space-y-2 mt-3">
+                              {/* Date & Category Row */}
+                              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="w-3.5 h-3.5" />
+                                  <span>{formatDate(memory.created_at)}</span>
+                                </div>
+                                {memory.category && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {memory.category}
+                                  </Badge>
+                                )}
                               </div>
-                              {memory.category && (
-                                <Badge variant="outline" className="text-xs">
-                                  {memory.category}
-                                </Badge>
-                              )}
-                            </div>
 
-                            {/* Action Buttons */}
-                            <div className="flex gap-2 mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => handleEditMemory(memory, e)}
-                                className="flex-1 text-violet hover:bg-violet/10"
-                              >
-                                <Edit className="w-4 h-4 mr-1" />
-                                Edit
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => handleDeleteMemory(memory, e)}
-                                className="flex-1 text-destructive hover:bg-destructive/10"
-                              >
-                                <Trash2 className="w-4 h-4 mr-1" />
-                                Delete
-                              </Button>
+                              {/* People Row - Simple names display */}
+                              {(() => {
+                                const people = memory.people || [];
+                                
+                                // 🔍 DIAGNOSTIC: Log what we receive for debugging
+                                console.log(`📋 BookOfLife Memory "${memory.title}":`, {
+                                  hasPeople: people.length > 0,
+                                  people: people,
+                                  people_involved: memory.people_involved,
+                                  people_ids: memory.people_ids,
+                                  person_tags: memory.person_tags
+                                });
+                                
+                                // Only show if we have valid people with names
+                                const hasValidPeople = people.length > 0 && people.some((p: any) => p && p.name);
+                                
+                                if (hasValidPeople) {
+                                  // Just show the names, clean and simple
+                                  const peopleNames = people.map((p: any) => p.name).filter(Boolean).join(', ');
+                                  return (
+                                    <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                                      <Users className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                                      <span className="line-clamp-1">{peopleNames}</span>
+                                    </div>
+                                  );
+                                }
+                                
+                                // If no valid names, hide section completely
+                                return null;
+                              })()}
+
+                              {/* Location Row */}
+                              {memory.location && (
+                                <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                                  <MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                                  <span className="line-clamp-1">{memory.location}</span>
+                                </div>
+                              )}
+
+                              {/* Emotions Row */}
+                              {memory.emotions && memory.emotions.length > 0 && (
+                                <div className="flex items-start gap-1.5 text-xs">
+                                  <Heart className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-coral" />
+                                  <div className="flex flex-wrap gap-1">
+                                    {memory.emotions.map((emotion: string, idx: number) => (
+                                      <Badge key={idx} variant="secondary" className="text-xs bg-coral/10 text-coral border-coral/20">
+                                        {emotion}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </CardContent>
                         </Card>

@@ -12,15 +12,63 @@ class PersistentDatabase {
   private supabase;
   private baseURL: string;
   private useSupabase: boolean = true;
+  private isFigmaMakeEnvironment: boolean = false;
   
   constructor() {
     // Use singleton Supabase client to avoid multiple GoTrueClient instances
     this.supabase = getSupabaseClient();
     this.baseURL = `https://${projectId}.supabase.co/functions/v1/make-server-48a3bd07`;
     
-    console.log('🚀 MemoryBox: Database Service Initialized');
-    console.log('💾 Supabase database integration active');
-    console.log('✨ Data syncs across devices with localStorage fallback');
+    // Detect Figma Make environment
+    this.isFigmaMakeEnvironment = this.detectFigmaMakeEnvironment();
+    
+    if (this.isFigmaMakeEnvironment) {
+      console.log('🎨 MemoryBox: Running in Figma Make (Demo Mode)');
+      console.log('📦 Using localStorage-only mode (Supabase unavailable)');
+      console.log('ℹ️ To test with real database, deploy to production/Vercel');
+    } else {
+      console.log('🚀 MemoryBox: Database Service Initialized');
+      console.log('💾 Supabase database integration active');
+      console.log('✨ Data syncs across devices with localStorage fallback');
+    }
+  }
+  
+  /**
+   * Detect if running in Figma Make environment
+   * Figma Make blocks external network requests for security
+   */
+  private detectFigmaMakeEnvironment(): boolean {
+    try {
+      const url = window.location.href;
+      const hostname = window.location.hostname;
+      
+      // Check for Figma Make specific URLs
+      const isFigmaBlob = url.includes('blob:https://') && url.includes('figmaiframepreview.figma.site');
+      const isFigmaDomain = hostname.includes('figma.com') || hostname.includes('figma.site');
+      const hasFigmaPreview = url.includes('figmaiframepreview');
+      
+      return isFigmaBlob || hasFigmaPreview || (isFigmaDomain && url.includes('blob:'));
+    } catch (error) {
+      return false;
+    }
+  }
+  
+  /**
+   * Helper to check if error is a Figma Make fetch error
+   */
+  private isFigmaFetchError(error: any): boolean {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    return (this.isFigmaMakeEnvironment || errorMsg.includes('Failed to fetch')) && 
+           errorMsg.includes('TypeError');
+  }
+  
+  /**
+   * Helper to log Figma Make errors gracefully without alarming users
+   */
+  private logFigmaError(operation: string): void {
+    if (this.isFigmaMakeEnvironment) {
+      console.log(`🎨 Figma Make: ${operation} unavailable (demo mode) - using localStorage`);
+    }
   }
 
   /**
@@ -476,7 +524,11 @@ class PersistentDatabase {
       return profile;
       
     } catch (error) {
-      console.warn('⚠️ Database read failed, using localStorage:', error);
+      if (this.isFigmaFetchError(error)) {
+        this.logFigmaError('User profile fetch');
+      } else {
+        console.warn('⚠️ Database read failed, using localStorage:', error);
+      }
       // Fallback to localStorage
       return this.getFromLocalStorage(`user:${userId}:profile`);
     }
@@ -646,7 +698,11 @@ class PersistentDatabase {
       return family;
       
     } catch (error) {
-      console.warn('⚠️ Database read failed, using localStorage:', error);
+      if (this.isFigmaFetchError(error)) {
+        this.logFigmaError('Family data fetch');
+      } else {
+        console.warn('⚠️ Database read failed, using localStorage:', error);
+      }
       // Fallback to localStorage
       return this.getFromLocalStorage(`family:${familyId}:data`);
     }
@@ -711,13 +767,24 @@ class PersistentDatabase {
         hasRelationships: !Array.isArray(tree) && Array.isArray(tree?.relationships)
       });
       
-      // 🔧 CRITICAL FIX: NEVER overwrite good localStorage data with empty database data!
-      // This prevents data loss when database is corrupted or hasn't synced properly
-      if (dbPeople.length === 0 && localPeople.length > 0) {
-        console.log('⚠️ Database has 0 people but localStorage has', localPeople.length, 'people');
-        console.log('   Using localStorage as source of truth (database is corrupted/empty)');
-        console.log('   This prevents data loss from database corruption');
-        console.log('   🔍 DEBUG: This means the save is working but RLS policy might be blocking the read!');
+      // 🔧 AUTO-FIX: If database is empty but localStorage has data, restore from localStorage
+      // This fixes cases where database save failed but localStorage succeeded
+      // Skip auto-restore in Figma Make environment
+      if (dbPeople.length === 0 && localPeople.length > 0 && !this.isFigmaMakeEnvironment) {
+        console.warn('⚠️ [AUTO-FIX] Database has 0 people but localStorage has', localPeople.length, 'people');
+        console.warn('   🔧 Auto-restoring from localStorage to database...');
+        
+        // Restore data to database in background (don't block the UI)
+        this.saveFamilyTree(familyId, localTree, { retries: 3, showToast: false })
+          .then(() => {
+            console.log('✅ [AUTO-FIX] Successfully restored', localPeople.length, 'people to database!');
+          })
+          .catch((restoreError) => {
+            console.error('❌ [AUTO-FIX] Failed to restore data to database:', restoreError);
+            console.error('   Data is safe in localStorage, but manual fix may be needed');
+          });
+        
+        // Return localStorage data immediately (don't wait for database restore)
         return localTree;
       }
       
@@ -731,9 +798,17 @@ class PersistentDatabase {
       return tree;
       
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      
+      // 🎨 FIGMA MAKE: Show friendly message instead of error
+      if (this.isFigmaMakeEnvironment && errorMsg.includes('Failed to fetch')) {
+        console.log('🎨 Figma Make: Network blocked (expected) - using localStorage');
+        return this.getFromLocalStorage(`familyTree_${familyId}`) || { people: [], relationships: [] };
+      }
+      
       console.error('❌ Database read FAILED:', {
         familyId,
-        error: error instanceof Error ? error.message : String(error)
+        error: errorMsg
       });
       // Fallback to localStorage
       return this.getFromLocalStorage(`familyTree_${familyId}`) || { people: [], relationships: [] };
@@ -741,6 +816,22 @@ class PersistentDatabase {
   }
 
   async saveFamilyTree(familyId: string, tree: any, options = { retries: 3, showToast: true }): Promise<void> {
+    // 🔍 LOG EVERY SAVE ATTEMPT with timestamp
+    const timestamp = new Date().toISOString();
+    const peopleCount = Array.isArray(tree) ? tree.length : (tree?.people?.length || 0);
+    console.log(`🔍 [${timestamp}] saveFamilyTree called:`, {
+      familyId: familyId.substring(0, 8) + '...',
+      peopleCount,
+      caller: new Error().stack?.split('\n')[2]?.trim()
+    });
+    
+    // 🎨 FIGMA MAKE: Skip database in Figma Make environment
+    if (this.isFigmaMakeEnvironment) {
+      console.log('🎨 Figma Make detected - saving to localStorage only (demo mode)');
+      this.saveToLocalStorage(`familyTree_${familyId}`, tree);
+      return;
+    }
+    
     // ✅ CRITICAL FIX: Skip database for invalid UUIDs (including demo families)
     if (!this.isValidUUID(familyId)) {
       console.log('📦 Invalid/demo family ID - saving to localStorage only');
@@ -754,6 +845,34 @@ class PersistentDatabase {
     for (let attempt = 1; attempt <= options.retries; attempt++) {
       try {
         console.log(`💾 Attempt ${attempt}/${options.retries}: Saving tree to database...`);
+        
+        // 🔍 DIAGNOSTIC: Log what we're about to save
+        const peopleCount = Array.isArray(tree) ? tree.length : (tree?.people?.length || 0);
+        console.log(`🔍 [SAVE DEBUG] Received tree data:`, {
+          isArray: Array.isArray(tree),
+          peopleCount,
+          hasRelationships: tree?.relationships ? true : false,
+          relationshipsCount: tree?.relationships?.length || 0,
+          firstPersonName: Array.isArray(tree) ? tree[0]?.name : tree?.people?.[0]?.name
+        });
+        
+        // 🔒 SAFEGUARD: Prevent empty tree saves (BLOCK ALL EMPTY SAVES!)
+        if (peopleCount === 0) {
+          console.error('🚨 [CRITICAL] Attempting to save EMPTY tree to database!');
+          console.error('   This will OVERWRITE existing data!');
+          console.error('   Tree structure:', JSON.stringify(tree, null, 2));
+          console.error('   Called from:');
+          console.trace('Stack trace:');
+          
+          // 🚫 ALWAYS BLOCK empty saves - there's NO valid reason to save empty tree
+          // If user wants to delete all members, they should delete the family account instead
+          console.error('❌ [BLOCKED] Refusing to save empty tree - data loss prevention!');
+          console.error('   If you see this, there\'s a bug in the component calling saveFamilyTree');
+          
+          // Don't throw error - just refuse silently to avoid breaking UI
+          // But log enough info to debug
+          return;
+        }
         
         // Normalize tree format (handle both array and object formats)
         let treeData = tree;
@@ -899,6 +1018,11 @@ class PersistentDatabase {
       const { data, error } = await query;
       
       if (error) {
+        // 🎨 FIGMA MAKE: Suppress fetch errors in demo environment
+        if (this.isFigmaFetchError(error)) {
+          this.logFigmaError('Memories query');
+          throw error; // Still throw to trigger localStorage fallback
+        }
         console.error(`❌ DatabaseService: Supabase query error:`, error);
         throw error;
       }
@@ -944,6 +1068,10 @@ class PersistentDatabase {
           // 🎯 JOURNEY FIX: Include journeyType for filtering
           journeyType: memory.journey_type || null,
           journey_type: memory.journey_type || null,
+          // 🔥 PREGNANCY FIX: Include child_id for pregnancy journey editing
+          child_id: memory.child_id || null,
+          milestone_id: memory.milestone_id || null,
+          milestone_title: memory.milestone_title || null,
           // Additional fields for compatibility
           people_involved: memory.people_involved || [],
           is_private: memory.is_private || false,
@@ -961,7 +1089,11 @@ class PersistentDatabase {
       return memories;
       
     } catch (error) {
-      console.warn('⚠️ Database read failed, using localStorage:', error);
+      if (this.isFigmaFetchError(error)) {
+        this.logFigmaError('Memories fetch');
+      } else {
+        console.warn('⚠️ Database read failed, using localStorage:', error);
+      }
       // Fallback to localStorage
       const memories = this.getFromLocalStorage(`family:${familyId}:memories`) || [];
       
@@ -1059,6 +1191,8 @@ class PersistentDatabase {
           files: memoryData.files || [],
           // 🎯 JOURNEY FIX: Save journeyType for filtering
           journey_type: memoryData.journeyType || memoryData.journey_type || null,
+          // 👶 PREGNANCY FIX: Save child_id for pregnancy memories
+          child_id: memoryData.childId || memoryData.child_id || null,
           // Additional fields for compatibility
           people_involved: memoryData.people_involved || [],
           is_private: memoryData.is_private || false,
@@ -1311,7 +1445,11 @@ class PersistentDatabase {
       return journals;
       
     } catch (error) {
-      console.warn('⚠️ Database read failed, using localStorage:', error);
+      if (this.isFigmaFetchError(error)) {
+        this.logFigmaError('Journals fetch');
+      } else {
+        console.warn('⚠️ Database read failed, using localStorage:', error);
+      }
       // Fallback to localStorage
       return this.getFromLocalStorage(`user:${userId}:journals`) || [];
     }
@@ -1391,7 +1529,11 @@ class PersistentDatabase {
       return progress;
       
     } catch (error) {
-      console.warn('⚠️ Database read failed, using localStorage:', error);
+      if (this.isFigmaFetchError(error)) {
+        this.logFigmaError(`${journeyType} journey progress fetch`);
+      } else {
+        console.warn('⚠️ Database read failed, using localStorage:', error);
+      }
       // Fallback to localStorage
       return this.getFromLocalStorage(`${journeyType}JourneyProgress_${userId}`) || { milestones: [] };
     }
@@ -1987,6 +2129,12 @@ class PersistentDatabase {
    * 📚 BOOK OF LIFE: Get book preferences for user
    */
   async getBookPreferences(userId: string): Promise<any[]> {
+    // 🎨 FIGMA MAKE: Return empty array in demo mode
+    if (this.isFigmaMakeEnvironment) {
+      console.log('🎨 Figma Make: Book preferences unavailable (demo mode)');
+      return [];
+    }
+    
     if (!this.isValidUUID(userId)) {
       console.log('📦 DatabaseService: Invalid/demo ID - no book preferences');
       return [];
@@ -2001,6 +2149,14 @@ class PersistentDatabase {
       if (error) throw error;
       return data || [];
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      
+      // 🎨 FIGMA MAKE: Suppress fetch errors in demo mode
+      if (this.isFigmaMakeEnvironment || errorMsg.includes('Failed to fetch')) {
+        console.log('🎨 Network unavailable - book preferences disabled');
+        return [];
+      }
+      
       console.error('❌ Failed to load book preferences:', error);
       return [];
     }
@@ -2012,6 +2168,7 @@ class PersistentDatabase {
   async saveBookPreference(userId: string, preference: {
     journey_type: 'couple' | 'pregnancy';
     custom_title: string;
+    child_id?: string | null; // NEW: Link to specific child for pregnancy books
   }): Promise<void> {
     if (!this.isValidUUID(userId)) {
       console.log('📦 DatabaseService: Invalid/demo ID - cannot save book preference');
@@ -2025,13 +2182,14 @@ class PersistentDatabase {
           user_id: userId,
           journey_type: preference.journey_type,
           custom_title: preference.custom_title,
+          child_id: preference.child_id || null, // NEW: Include child_id
           updated_at: new Date().toISOString()
         }, {
-          onConflict: 'user_id,journey_type'
+          onConflict: 'user_id,journey_type,child_id' // NEW: Updated conflict resolution
         });
 
       if (error) throw error;
-      console.log('✅ Book preference saved to database');
+      console.log('✅ Book preference saved to database', preference.child_id ? `(child: ${preference.child_id})` : '');
     } catch (error) {
       console.error('❌ Failed to save book preference:', error);
       throw error;
@@ -2041,7 +2199,7 @@ class PersistentDatabase {
   /**
    * 📚 BOOK OF LIFE: Update last opened timestamp
    */
-  async updateBookLastOpened(userId: string, journeyType: 'couple' | 'pregnancy'): Promise<void> {
+  async updateBookLastOpened(userId: string, journeyType: 'couple' | 'pregnancy', childId?: string | null): Promise<void> {
     if (!this.isValidUUID(userId)) return;
 
     try {
@@ -2050,16 +2208,201 @@ class PersistentDatabase {
         .upsert({
           user_id: userId,
           journey_type: journeyType,
+          child_id: childId || null, // NEW: Include child_id
           last_opened_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }, {
-          onConflict: 'user_id,journey_type'
+          onConflict: 'user_id,journey_type,child_id' // NEW: Updated conflict resolution
         });
 
       if (error) throw error;
     } catch (error) {
       console.error('❌ Failed to update last opened:', error);
       // Silent failure - not critical
+    }
+  }
+
+  /**
+   * 👶 Get children from family tree (for pregnancy book selection)
+   * DATABASE-FIRST: Relies on database, shows error if RLS blocks
+   */
+  async getChildrenFromFamilyTree(familyId: string): Promise<Array<{
+    id: string;
+    name: string;
+    date_of_birth?: string;
+    gender?: string;
+  }>> {
+    console.log('🔍 [CHILD SELECTOR DEBUG] Starting getChildrenFromFamilyTree');
+    console.log('🔍 [CHILD SELECTOR DEBUG] Received familyId:', familyId);
+    
+    if (!this.isValidUUID(familyId)) {
+      console.log('❌ [CHILD SELECTOR DEBUG] Invalid family ID - no children');
+      return [];
+    }
+
+    try {
+      console.log('✅ [CHILD SELECTOR DEBUG] Family ID is valid UUID');
+      console.log('👶 [CHILD SELECTOR DEBUG] Loading from database...');
+      
+      // DATABASE-FIRST: Load from database ONLY
+      const { data, error } = await this.supabase
+        .from('family_trees')
+        .select('tree_data')
+        .eq('family_id', familyId)
+        .single();
+
+      if (error) {
+        console.error('❌ [CHILD SELECTOR DEBUG] Database error:', error.message);
+        console.error('🚨 [DATABASE-FIRST] RLS policy may be blocking reads');
+        console.error('🚨 [DATABASE-FIRST] Please run FIX_RLS_POLICY_DATABASE_FIRST.sql');
+        throw error;
+      }
+      
+      // Parse tree_data to extract children
+      if (!data || !data.tree_data) {
+        console.log('❌ [CHILD SELECTOR DEBUG] No family tree data in database');
+        return [];
+      }
+
+      console.log('✅ [CHILD SELECTOR DEBUG] Got tree_data from database');
+      
+      const treeData = typeof data.tree_data === 'string' 
+        ? JSON.parse(data.tree_data) 
+        : data.tree_data;
+
+      // Log what we got from database
+      const dbPeopleCount = treeData.people?.length || 0;
+      console.log(`📊 [CHILD SELECTOR DEBUG] Database has ${dbPeopleCount} people`);
+      
+      // ✅ DATABASE-FIRST: Return whatever database has (even if 0 people)
+      // This is correct behavior - if database has no data, user needs to add family members
+      return this.extractChildrenFromTreeData(treeData);
+      
+    } catch (error) {
+      console.error('❌ [CHILD SELECTOR DEBUG] Failed to load children:', error);
+      console.error('🚨 [DATABASE-FIRST] No localStorage fallback - fix RLS policy instead!');
+      throw error;
+    }
+  }
+
+  /**
+   * Helper: Extract children from tree data
+   */
+  private extractChildrenFromTreeData(treeData: any): Array<{
+    id: string;
+    name: string;
+    date_of_birth?: string;
+    gender?: string;
+  }> {
+    console.log('🔍 [CHILD SELECTOR DEBUG] Extracting children from tree data...');
+    console.log('🔍 [CHILD SELECTOR DEBUG] Tree structure:', {
+      peopleCount: treeData.people?.length || 0,
+      relationshipsCount: treeData.relationships?.length || 0,
+      rootUserId: treeData.rootUserId,
+      hasRootUserId: !!treeData.rootUserId
+    });
+
+    // Extract all people and relationships from the tree
+    const people = treeData.people || [];
+    const relationships = treeData.relationships || [];
+    
+    console.log('🔍 [CHILD SELECTOR DEBUG] People in tree:', people.length);
+    console.log('🔍 [CHILD SELECTOR DEBUG] Relationships in tree:', relationships.length);
+    
+    // Log all people for debugging
+    console.log('🔍 [CHILD SELECTOR DEBUG] All people:', people.map((p: any) => ({
+      id: p.id,
+      firstName: p.firstName,
+      lastName: p.lastName,
+      isRoot: p.isRoot,
+      generation: p.generation
+    })));
+    
+    // Log all relationships for debugging
+    console.log('🔍 [CHILD SELECTOR DEBUG] All relationships:', relationships.map((r: any) => ({
+      type: r.type,
+      from: r.from,
+      to: r.to
+    })));
+    
+    // Find the root user (the logged-in user)
+    const rootUser = people.find((p: any) => p.isRoot === true || p.id === treeData.rootUserId);
+    const rootUserId = rootUser?.id || treeData.rootUserId;
+    
+    console.log('🔍 [CHILD SELECTOR DEBUG] Root user:', rootUser ? {
+      id: rootUser.id,
+      firstName: rootUser.firstName,
+      isRoot: rootUser.isRoot
+    } : 'NOT FOUND');
+    console.log('🔍 [CHILD SELECTOR DEBUG] Using rootUserId:', rootUserId);
+    
+    if (!rootUserId) {
+      console.warn('❌ [CHILD SELECTOR DEBUG] No root user found in family tree');
+      return [];
+    }
+    
+    // Find all parent-child relationships where the root user is the parent
+    const childRelationships = relationships.filter((rel: any) => 
+      rel.type === 'parent-child' && rel.from === rootUserId
+    );
+    
+    console.log('🔍 [CHILD SELECTOR DEBUG] Parent-child relationships for root user:', childRelationships.length);
+    console.log('🔍 [CHILD SELECTOR DEBUG] Child relationship details:', childRelationships);
+    
+    // Get the child IDs from these relationships
+    const childIds = childRelationships.map((rel: any) => rel.to);
+    console.log('🔍 [CHILD SELECTOR DEBUG] Child IDs:', childIds);
+    
+    // Get the actual person objects for these children
+    const children = people.filter((person: any) => childIds.includes(person.id));
+    
+    console.log(`✅ [CHILD SELECTOR DEBUG] Found ${children.length} children for root user`);
+    console.log('✅ [CHILD SELECTOR DEBUG] Children details:', children.map((c: any) => ({
+      id: c.id,
+      firstName: c.firstName,
+      lastName: c.lastName,
+      dateOfBirth: c.dateOfBirth,
+      generation: c.generation
+    })));
+    
+    // Return in expected format with full name
+    const formattedChildren = children.map((child: any) => {
+      const fullName = [child.firstName, child.middleName, child.lastName]
+        .filter(Boolean)
+        .join(' ') || 'Unnamed Child';
+      
+      return {
+        id: child.id,
+        name: fullName,
+        date_of_birth: child.dateOfBirth || child.date_of_birth,
+        gender: child.gender
+      };
+    });
+    
+    console.log('✅ [CHILD SELECTOR DEBUG] Formatted children:', formattedChildren);
+    
+    return formattedChildren;
+  }
+
+  /**
+   * 👶 Link memory to child (for migration wizard)
+   */
+  async linkMemoryToChild(memoryId: string, childId: string): Promise<void> {
+    if (!this.isValidUUID(memoryId) || !this.isValidUUID(childId)) {
+      throw new Error('Invalid memory or child ID');
+    }
+
+    try {
+      const { error } = await this.supabase
+        .from('memories')
+        .update({ child_id: childId })
+        .eq('id', memoryId);
+
+      if (error) throw error;
+      console.log(`✅ Memory ${memoryId} linked to child ${childId}`);
+    } catch (error) {
+      console.error('❌ Failed to link memory to child:', error);
+      throw error;
     }
   }
 }

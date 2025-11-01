@@ -9,6 +9,7 @@ import { toast } from 'sonner@2.0.3';
 import { Toaster } from './components/ui/sonner';
 import { Button } from './components/ui/button';
 import { DatabaseService } from './utils/supabase/persistent-database';
+import { getSupabaseClient } from './utils/supabase/client';
 import { useInitializeRelationshipEngine } from './utils/useRelationship';
 import { normalizeGender } from './utils/genderHelpers';
 import { errorMonitoring } from './utils/errorMonitoring';
@@ -2130,36 +2131,74 @@ const BookOfLifeCoupleWrapper = () => {
 
   useEffect(() => {
     const loadData = async () => {
-      const currentUserId = localStorage.getItem('current_user_id');
-      if (currentUserId) {
-        const userProfile = localStorage.getItem(`user:${currentUserId}:profile`);
-        if (userProfile) {
-          const userData = JSON.parse(userProfile);
-          setUser(userData);
-          
-          // Load memories from database
-          if (userData.family_id) {
-            try {
-              const allMemories = await DatabaseService.getFamilyMemories(userData.family_id);
-              const coupleMemories = allMemories.filter((m: any) => m.journey_type === 'couple');
-              setMemories(coupleMemories);
-              
-              // Load book title from preferences
-              const prefs = await DatabaseService.getBookPreferences(currentUserId);
-              if (prefs?.couple) {
-                setBookTitle(prefs.couple);
-              }
-            } catch (error) {
-              console.error('Failed to load memories:', error);
+      try {
+        // ✅ DATABASE-FIRST: Get user from Supabase Auth session
+        const supabase = getSupabaseClient();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError || !session?.user) {
+          console.error('❌ BookOfLifeCoupleWrapper: No active session');
+          navigate('/signin');
+          return;
+        }
+
+        const currentUserId = session.user.id;
+        console.log('✅ BookOfLifeCoupleWrapper: Loading data for user:', currentUserId);
+
+        // ✅ DATABASE-FIRST: Load user profile from database
+        const { data: profile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', currentUserId)
+          .single();
+
+        if (profileError || !profile) {
+          console.error('❌ BookOfLifeCoupleWrapper: Failed to load profile:', profileError);
+          navigate('/signin');
+          return;
+        }
+
+        const userData = {
+          ...profile,
+          id: profile.id,
+          email: session.user.email,
+          family_id: profile.family_id
+        };
+        
+        setUser(userData);
+        console.log('✅ BookOfLifeCoupleWrapper: User profile loaded from database');
+        
+        // Cache to localStorage (ONLY as cache)
+        localStorage.setItem('current_user_id', currentUserId);
+        localStorage.setItem(`user:${currentUserId}:profile`, JSON.stringify(userData));
+        
+        // Load memories from database
+        if (userData.family_id) {
+          try {
+            const allMemories = await DatabaseService.getFamilyMemories(userData.family_id);
+            const coupleMemories = allMemories.filter((m: any) => m.journey_type === 'couple');
+            setMemories(coupleMemories);
+            console.log(`✅ BookOfLifeCoupleWrapper: Loaded ${coupleMemories.length} couple memories`);
+            
+            // Load book title from preferences
+            const prefs = await DatabaseService.getBookPreferences(currentUserId);
+            if (prefs?.couple) {
+              setBookTitle(prefs.couple);
             }
+          } catch (error) {
+            console.error('❌ BookOfLifeCoupleWrapper: Failed to load memories:', error);
           }
         }
+      } catch (error) {
+        console.error('❌ BookOfLifeCoupleWrapper: Unexpected error:', error);
+        navigate('/signin');
+      } finally {
+        setIsLoadingUser(false);
       }
-      setIsLoadingUser(false);
     };
 
     loadData();
-  }, []);
+  }, [navigate]);
 
   const handleNavigate = async (page: string) => {
     const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
@@ -2248,67 +2287,104 @@ const BookOfLifePregnancyWrapper = () => {
 
   useEffect(() => {
     const loadData = async () => {
-      const currentUserId = localStorage.getItem('current_user_id');
-      if (currentUserId) {
-        const userProfile = localStorage.getItem(`user:${currentUserId}:profile`);
-        if (userProfile) {
-          const userData = JSON.parse(userProfile);
-          setUser(userData);
-          
-          // NEW: Extract child_id from URL path (format: /vault/book/pregnancy-{childId})
-          const pathMatch = location.pathname.match(/\/vault\/book\/pregnancy-(.+)/);
-          const extractedChildId = pathMatch ? pathMatch[1] : undefined;
-          setChildId(extractedChildId);
-          
-          // Load memories from database
-          if (userData.family_id) {
-            try {
-              const allMemories = await DatabaseService.getFamilyMemories(userData.family_id);
-              
-              // 🔧 CRITICAL FIX: Filter by journey type AND child_id
-              let pregnancyMemories = allMemories.filter((m: any) => m.journey_type === 'pregnancy');
-              
-              // If viewing specific child's book, filter by child_id
-              if (extractedChildId && extractedChildId !== 'unassigned' && extractedChildId !== 'unborn') {
-                pregnancyMemories = pregnancyMemories.filter((m: any) => m.child_id === extractedChildId);
-                console.log(`📚 Pregnancy Book Filter: Showing ${pregnancyMemories.length} memories for child: ${extractedChildId}`);
-              } else {
-                console.log(`📚 Pregnancy Book Filter: Showing all ${pregnancyMemories.length} pregnancy memories (no child-specific filter)`);
-              }
-              
-              setMemories(pregnancyMemories);
-              
-              // NEW: Load child name from family tree if childId is provided
-              if (extractedChildId && extractedChildId !== 'unborn' && extractedChildId !== 'unassigned') {
-                try {
-                  const children = await DatabaseService.getChildrenFromFamilyTree(userData.family_id);
-                  const child = children.find((c: any) => c.id === extractedChildId);
-                  if (child) {
-                    setChildName(child.name);
-                  }
-                } catch (error) {
-                  console.error('Failed to load child data:', error);
-                }
-              }
-              
-              // Load book title from preferences (check child-specific first, then fallback)
-              const prefs = await DatabaseService.getBookPreferences(currentUserId);
-              if (extractedChildId && prefs[extractedChildId]) {
-                setBookTitle(prefs[extractedChildId]); // Child-specific title
-              } else if (prefs.pregnancy) {
-                setBookTitle(prefs.pregnancy); // Fallback to generic pregnancy title
-              }
-            } catch (error) {
-              console.error('Failed to load memories:', error);
+      try {
+        // ✅ DATABASE-FIRST: Get user from Supabase Auth session
+        const supabase = getSupabaseClient();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError || !session?.user) {
+          console.error('❌ BookOfLifePregnancyWrapper: No active session');
+          navigate('/signin');
+          return;
+        }
+
+        const currentUserId = session.user.id;
+        console.log('✅ BookOfLifePregnancyWrapper: Loading data for user:', currentUserId);
+
+        // ✅ DATABASE-FIRST: Load user profile from database
+        const { data: profile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', currentUserId)
+          .single();
+
+        if (profileError || !profile) {
+          console.error('❌ BookOfLifePregnancyWrapper: Failed to load profile:', profileError);
+          navigate('/signin');
+          return;
+        }
+
+        const userData = {
+          ...profile,
+          id: profile.id,
+          email: session.user.email,
+          family_id: profile.family_id
+        };
+        
+        setUser(userData);
+        console.log('✅ BookOfLifePregnancyWrapper: User profile loaded from database');
+        
+        // Cache to localStorage (ONLY as cache)
+        localStorage.setItem('current_user_id', currentUserId);
+        localStorage.setItem(`user:${currentUserId}:profile`, JSON.stringify(userData));
+        
+        // NEW: Extract child_id from URL path (format: /vault/book/pregnancy-{childId})
+        const pathMatch = location.pathname.match(/\/vault\/book\/pregnancy-(.+)/);
+        const extractedChildId = pathMatch ? pathMatch[1] : undefined;
+        setChildId(extractedChildId);
+        
+        // Load memories from database
+        if (userData.family_id) {
+          try {
+            const allMemories = await DatabaseService.getFamilyMemories(userData.family_id);
+            
+            // 🔧 CRITICAL FIX: Filter by journey type AND child_id
+            let pregnancyMemories = allMemories.filter((m: any) => m.journey_type === 'pregnancy');
+            
+            // If viewing specific child's book, filter by child_id
+            if (extractedChildId && extractedChildId !== 'unassigned' && extractedChildId !== 'unborn') {
+              pregnancyMemories = pregnancyMemories.filter((m: any) => m.child_id === extractedChildId);
+              console.log(`📚 Pregnancy Book Filter: Showing ${pregnancyMemories.length} memories for child: ${extractedChildId}`);
+            } else {
+              console.log(`📚 Pregnancy Book Filter: Showing all ${pregnancyMemories.length} pregnancy memories (no child-specific filter)`);
             }
+            
+            setMemories(pregnancyMemories);
+            
+            // NEW: Load child name from family tree if childId is provided
+            if (extractedChildId && extractedChildId !== 'unborn' && extractedChildId !== 'unassigned') {
+              try {
+                const children = await DatabaseService.getChildrenFromFamilyTree(userData.family_id);
+                const child = children.find((c: any) => c.id === extractedChildId);
+                if (child) {
+                  setChildName(child.name);
+                }
+              } catch (error) {
+                console.error('❌ BookOfLifePregnancyWrapper: Failed to load child data:', error);
+              }
+            }
+            
+            // Load book title from preferences (check child-specific first, then fallback)
+            const prefs = await DatabaseService.getBookPreferences(currentUserId);
+            if (extractedChildId && prefs[extractedChildId]) {
+              setBookTitle(prefs[extractedChildId]); // Child-specific title
+            } else if (prefs.pregnancy) {
+              setBookTitle(prefs.pregnancy); // Fallback to generic pregnancy title
+            }
+          } catch (error) {
+            console.error('❌ BookOfLifePregnancyWrapper: Failed to load memories:', error);
           }
         }
+      } catch (error) {
+        console.error('❌ BookOfLifePregnancyWrapper: Unexpected error:', error);
+        navigate('/signin');
+      } finally {
+        setIsLoadingUser(false);
       }
-      setIsLoadingUser(false);
     };
 
     loadData();
-  }, [location.pathname]); // NEW: Reload when URL changes (switching between children)
+  }, [location.pathname, navigate]); // NEW: Reload when URL changes (switching between children)
 
   const handleNavigate = async (page: string) => {
     const homeRoute = page === 'home' ? await getHomeRoute() : '/home';

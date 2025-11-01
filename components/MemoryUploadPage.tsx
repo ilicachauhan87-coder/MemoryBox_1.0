@@ -752,6 +752,31 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
     if (milestoneContext) {
       console.log('📸 Milestone context detected:', milestoneContext);
       
+      // 🔧 CRITICAL FIX: Don't overwrite fields in edit mode - let the edit useEffect handle it
+      const isEditingMode = milestoneContext.isEditMode || milestoneContext.editingMemory;
+      
+      if (isEditingMode) {
+        console.log('✏️ Edit mode detected - skipping milestone pre-fill, using memory data instead');
+        
+        // 👶 ONLY pre-select child for pregnancy journey (needed for edit mode)
+        if (milestoneContext.journeyType === 'pregnancy') {
+          const childIdFromEdit = milestoneContext.editingMemory?.child_id;
+          const childIdFromMilestone = milestoneContext.childId;
+          const childIdToUse = childIdFromEdit || childIdFromMilestone;
+          
+          if (childIdToUse) {
+            console.log('👶 Pre-selecting child from editing context:', childIdToUse);
+            setSelectedChildId(childIdToUse);
+          }
+        }
+        
+        // Don't pre-fill title, description, tags - let edit mode useEffect handle it
+        return;
+      }
+      
+      // Regular milestone capture mode (not editing) - pre-fill with milestone details
+      console.log('📝 New memory mode - pre-filling with milestone template');
+      
       // Pre-fill title with milestone
       setTitle(milestoneContext.milestoneTitle);
       
@@ -987,19 +1012,43 @@ export function MemoryUploadPage({ onBack, onSuccess, user, family, familyMember
     }
   }, [isEditMode, memoryToEdit]);
   
-  // 🆕 Listen for editMemory event from VaultPage
+  // 🆕 Listen for editMemory event from VaultPage and BookOfLifeViewer
   useEffect(() => {
     const handleEditMemory = (event: any) => {
-      const { memory } = event.detail;
-      console.log('📡 Received editMemory event:', memory);
+      // 🔧 ENHANCED: Support both old format (just memory) and new format (editMemory + milestoneContext)
+      const eventData = event.detail;
+      const memory = eventData.memory || eventData.editMemory;
+      const context = eventData.milestoneContext;
+      
+      console.log('📡 Received editMemory event:', {
+        hasMemory: !!memory,
+        hasMilestoneContext: !!context,
+        memoryId: memory?.id,
+        journeyType: context?.journeyType,
+        filesCount: memory?.files?.length || 0
+      });
+      
       console.log('📡 Category fields in received memory:', {
-        category: memory.category,
-        memory_type: memory.memory_type,
-        memory_category: memory.memory_category
+        category: memory?.category,
+        memory_type: memory?.memory_type,
+        memory_category: memory?.memory_category
       });
       
       // Update memoryToEdit state to trigger re-population
       setMemoryToEdit(memory);
+      
+      // 🚀 NEW: If milestone context provided (from Book of Life), also set journey context
+      // This ensures journey-specific fields (like child selector for pregnancy) are pre-populated
+      if (context) {
+        console.log('🎯 Setting journey context from Book of Life edit:', context);
+        // Use the same navigation state mechanism that journey pages use
+        window.history.replaceState(
+          { ...window.history.state, milestoneContext: context },
+          ''
+        );
+        // Force a re-render by updating location state reference
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }
     };
 
     window.addEventListener('editMemory', handleEditMemory);

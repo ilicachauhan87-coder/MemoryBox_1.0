@@ -299,8 +299,12 @@ export const VaultPage: React.FC<VaultPageProps> = ({ user, family, onNavigate }
           console.warn('⚠️ VaultPage: Could not load family tree for people resolution:', error);
         }
         
+        // 🔧 FIX: Refresh file URLs for multimedia (prevents blank thumbnails)
+        const { refreshAllMemoryFileUrls } = await import('../utils/memoryUrlRefresh');
+        const memoriesWithFreshUrls = await refreshAllMemoryFileUrls(userMemories);
+        
         // ✅ NEW: Transform memories to include people names instead of just IDs
-        const memoriesWithPeople = userMemories.map((memory: any) => {
+        const memoriesWithPeople = memoriesWithFreshUrls.map((memory: any) => {
           const peopleInvolved = memory.people_involved || memory.people_ids || memory.person_tags || [];
           
           if (peopleInvolved.length > 0 && familyTreeData?.tree_data?.members) {

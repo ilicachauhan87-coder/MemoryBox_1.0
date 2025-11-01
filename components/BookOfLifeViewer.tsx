@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, ChevronLeft, ChevronRight, Calendar, MapPin, Tag, Users, Heart, Baby, Sparkles, Share, Download, Edit, Trash2, ImageIcon, Video as VideoIcon, Mic, Play, FileAudio, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Card, CardContent } from './ui/card';
@@ -20,6 +21,8 @@ interface BookOfLifeViewerProps {
   onBack: () => void;
   onNavigate: (page: string) => void;
   onMemoryDeleted?: () => void;
+  childId?: string; // NEW: Filter pregnancy memories by child
+  childName?: string; // NEW: Display child name in title
 }
 
 type SortOrder = 'newest-first' | 'oldest-first';
@@ -31,7 +34,9 @@ export const BookOfLifeViewer: React.FC<BookOfLifeViewerProps> = ({
   user,
   onBack,
   onNavigate,
-  onMemoryDeleted
+  onMemoryDeleted,
+  childId, // NEW
+  childName // NEW
 }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [isFlipping, setIsFlipping] = useState(false);
@@ -43,6 +48,11 @@ export const BookOfLifeViewer: React.FC<BookOfLifeViewerProps> = ({
   
   // Detect mobile for responsive book layout
   const isMobile = useIsMobile();
+
+  // NEW: Filter memories by child_id for pregnancy books
+  const filteredMemories = journeyType === 'pregnancy' && childId
+    ? memories.filter(m => (m as any).child_id === childId)
+    : memories;
 
   // Get book theme based on journey type
   const bookTheme = journeyType === 'couple'
@@ -63,8 +73,8 @@ export const BookOfLifeViewer: React.FC<BookOfLifeViewerProps> = ({
         accentColor: 'bg-purple-500'
       };
 
-  // Sort memories by date based on selected sort order
-  const sortedMemories = [...memories].sort((a, b) => {
+  // Sort memories by date based on selected sort order (use filteredMemories)
+  const sortedMemories = [...filteredMemories].sort((a, b) => {
     const dateA = new Date(a.created_at).getTime();
     const dateB = new Date(b.created_at).getTime();
     return sortOrder === 'newest-first' ? dateB - dateA : dateA - dateB;
@@ -111,8 +121,18 @@ export const BookOfLifeViewer: React.FC<BookOfLifeViewerProps> = ({
   const handleEditMemory = (memory: Memory, e: React.MouseEvent) => {
     e.stopPropagation();
     hapticFeedback.tap();
-    // Navigate to edit (you can implement this based on your routing)
-    toast.info('Edit feature coming soon!');
+    
+    // Store the memory to edit in localStorage (temporary)
+    localStorage.setItem('editingJourneyMemory', JSON.stringify(memory));
+    
+    // Navigate to the appropriate journey page based on journey type
+    if (journeyType === 'couple') {
+      onNavigate('couple-journey');
+      toast.success('Opening editor for your couple memory...');
+    } else if (journeyType === 'pregnancy') {
+      onNavigate('pregnancy-journey');
+      toast.success('Opening editor for your pregnancy memory...');
+    }
   };
 
   const handleDeleteMemory = (memory: Memory, e: React.MouseEvent) => {

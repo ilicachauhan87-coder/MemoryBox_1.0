@@ -1330,6 +1330,7 @@ app.post("/make-server-78eb8d05/metrics/init-user", async (c) => {
         user_id: user_id,
         email: email,
         batch_no: batch_no || 1,
+        last_active_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }, {

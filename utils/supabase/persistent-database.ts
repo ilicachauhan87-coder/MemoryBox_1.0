@@ -108,11 +108,8 @@ class PersistentDatabase {
   private isValidUUID(id: string | undefined | null): boolean {
     if (!id || typeof id !== 'string') return false;
     
-    // Skip database operations for demo users
-    if (id === 'demo-user' || id.startsWith('demo-')) {
-      console.log('📦 Demo user detected - skipping database, using localStorage only');
-      return false;
-    }
+    // ✅ NO DEMO USER DETECTION - All users must be real authenticated users
+    // Database-first architecture: only valid UUIDs can access database
     
     // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -1152,16 +1149,17 @@ class PersistentDatabase {
       }
       
       // ✅ FIX: Validate and normalize memory_type to match database constraint
+      // Database CHECK constraint accepts: 'photo', 'video', 'audio', 'document', 'text'
       const rawType = memoryData.memory_type || memoryData.type || 'photo';
-      const validTypes = ['photo', 'video', 'audio', 'voice_note', 'text'];
+      const validTypes = ['photo', 'video', 'audio', 'document', 'text'];
       let normalizedType = rawType.toLowerCase();
       
-      // Handle common variations
-      if (normalizedType === 'voice-note' || normalizedType === 'voice') {
-        normalizedType = 'voice_note';
+      // Handle common variations - map voice notes to audio
+      if (normalizedType === 'voice-note' || normalizedType === 'voice_note' || normalizedType === 'voice') {
+        normalizedType = 'audio';
       }
       
-      // Ensure it's a valid type
+      // Ensure it's a valid type that database accepts
       if (!validTypes.includes(normalizedType)) {
         console.warn(`⚠️ Invalid memory_type: ${rawType}, defaulting to 'photo'`);
         normalizedType = 'photo';
@@ -1301,16 +1299,17 @@ class PersistentDatabase {
       console.log(`💾 Updating memory ${memoryId} in database...`);
       
       // ✅ FIX: Validate and normalize memory_type to match database constraint
+      // Database CHECK constraint accepts: 'photo', 'video', 'audio', 'document', 'text'
       const rawType = memoryData.memory_type || memoryData.type || 'photo';
-      const validTypes = ['photo', 'video', 'audio', 'voice_note', 'text'];
+      const validTypes = ['photo', 'video', 'audio', 'document', 'text'];
       let normalizedType = rawType.toLowerCase();
       
-      // Handle common variations
-      if (normalizedType === 'voice-note' || normalizedType === 'voice') {
-        normalizedType = 'voice_note';
+      // Handle common variations - map voice notes to audio
+      if (normalizedType === 'voice-note' || normalizedType === 'voice_note' || normalizedType === 'voice') {
+        normalizedType = 'audio';
       }
       
-      // Ensure it's a valid type
+      // Ensure it's a valid type that database accepts
       if (!validTypes.includes(normalizedType)) {
         console.warn(`⚠️ Invalid memory_type: ${rawType}, defaulting to 'photo'`);
         normalizedType = 'photo';
@@ -1502,14 +1501,16 @@ class PersistentDatabase {
   // ==================== JOURNEYS ====================
 
   async getJourneyProgress(userId: string, journeyType: string): Promise<any> {
-    // ✅ CRITICAL FIX: Skip database for invalid UUIDs (including demo users)
+    // ✅ CRITICAL FIX: Return empty for invalid UUIDs (no localStorage fallback for invalid IDs)
     if (!this.isValidUUID(userId)) {
-      console.log('📦 Invalid/demo user ID - using localStorage only');
-      return this.getFromLocalStorage(`${journeyType}JourneyProgress_${userId}`) || { milestones: [] };
+      console.log('📦 Invalid user ID - cannot load journey progress');
+      return { milestones: [], customMilestones: [] };
     }
     
     try {
       const tableName = journeyType === 'couple' ? 'couple_journeys' : 'pregnancy_journeys';
+      
+      console.log(`💾 Loading ${journeyType} journey from database for user ${userId}...`);
       
       const { data, error } = await this.supabase
         .from(tableName)
@@ -1519,9 +1520,15 @@ class PersistentDatabase {
       
       if (error) throw error;
       
+      // Parse the milestones from database
+      const journeyProgress = data && data.length > 0 ? data[0] : null;
+      
       const progress = {
-        milestones: data || []
+        milestones: journeyProgress?.milestones || [],
+        customMilestones: journeyProgress?.custom_milestones || []
       };
+      
+      console.log(`✅ Loaded ${journeyType} journey from database:`, progress);
       
       // Cache in localStorage
       this.saveToLocalStorage(`${journeyType}JourneyProgress_${userId}`, progress);
@@ -1532,10 +1539,10 @@ class PersistentDatabase {
       if (this.isFigmaFetchError(error)) {
         this.logFigmaError(`${journeyType} journey progress fetch`);
       } else {
-        console.warn('⚠️ Database read failed, using localStorage:', error);
+        console.error(`❌ Database read failed for ${journeyType} journey:`, error);
       }
       // Fallback to localStorage
-      return this.getFromLocalStorage(`${journeyType}JourneyProgress_${userId}`) || { milestones: [] };
+      return this.getFromLocalStorage(`${journeyType}JourneyProgress_${userId}`) || { milestones: [], customMilestones: [] };
     }
   }
 
@@ -1558,14 +1565,14 @@ class PersistentDatabase {
           id: milestone.id,
           user_id: userId,
           partner_id: milestone.partner_id,
-          milestone_type: milestone.milestone_type || milestone.type,
-          milestone_date: milestone.milestone_date || milestone.date,
+          milestone_type: milestone.milestone_type || milestone.type || milestone.phase,
+          milestone_date: milestone.milestone_date || milestone.date || milestone.completedDate,
           week_number: milestone.week_number,
           title: milestone.title,
           description: milestone.description,
           photo_url: milestone.photo_url,
-          is_completed: milestone.is_completed || milestone.completed || false,
-          completed_at: milestone.completed_at,
+          is_completed: milestone.isCompleted || milestone.is_completed || milestone.completed || false,
+          completed_at: milestone.completedDate || milestone.completed_at || (milestone.isCompleted ? new Date().toISOString() : null),
           updated_at: new Date().toISOString()
         }));
         
@@ -1582,10 +1589,19 @@ class PersistentDatabase {
       console.log(`✅ ${journeyType} journey saved to database`);
       
     } catch (error) {
-      console.warn('⚠️ Database save failed, using localStorage:', error);
-      // Fallback to localStorage
-      this.saveToLocalStorage(`${journeyType}JourneyProgress_${userId}`, progress);
-      console.log(`💾 ${journeyType} journey saved to localStorage`);
+      console.error(`❌ Database save failed for ${journeyType} journey:`, error);
+      // ✅ DATABASE-FIRST: Don't silently fall back to localStorage
+      // Update cache only if it exists (for consistency)
+      try {
+        const cached = this.getFromLocalStorage(`${journeyType}JourneyProgress_${userId}`);
+        if (cached) {
+          this.saveToLocalStorage(`${journeyType}JourneyProgress_${userId}`, progress);
+          console.log(`💾 Updated localStorage cache (database save failed)`);
+        }
+      } catch (cacheError) {
+        // Ignore cache errors in incognito mode
+      }
+      throw error; // Propagate error to caller
     }
   }
 

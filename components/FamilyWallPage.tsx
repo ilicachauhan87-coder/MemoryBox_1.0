@@ -279,8 +279,12 @@ export function FamilyWallPage({ user, family, onBack, onNavigate }: FamilyWallP
       const rawMemories = await DatabaseService.getFamilyMemories(familyId);
       console.log(`💾 Family Wall: Loaded ${rawMemories.length} memories from database`);
       
-      if (rawMemories.length > 0) {
-        rawMemories.forEach((memory: any) => {
+      // 🔧 FIX: Refresh file URLs for multimedia (prevents blank thumbnails)
+      const { refreshAllMemoryFileUrls } = await import('../utils/memoryUrlRefresh.ts');
+      const memoriesWithFreshUrls = await refreshAllMemoryFileUrls(rawMemories);
+      
+      if (memoriesWithFreshUrls.length > 0) {
+        memoriesWithFreshUrls.forEach((memory: any) => {
           // 🔒 PRIVACY FILTER: Only show memories that are shared with family
           // Skip memories that are:
           // 1. Explicitly marked as private (is_private: true)

@@ -231,8 +231,13 @@ export function ReturningUserHomePage({ onNavigate, user, family }: ReturningUse
         // Load memories
         console.log(`🔍 ReturningUserHomePage: Loading memories for family_id: ${user.family_id}`);
         const userMemories = await getUserFamilyMemories(user.id, user.family_id);
-        setMemories(userMemories);
-        console.log(`📊 ReturningUserHomePage: Loaded ${userMemories.length} memories`);
+        
+        // 🔧 FIX: Refresh file URLs for multimedia (prevents blank thumbnails)
+        const { refreshAllMemoryFileUrls } = await import('../utils/memoryUrlRefresh.ts');
+        const memoriesWithFreshUrls = await refreshAllMemoryFileUrls(userMemories);
+        
+        setMemories(memoriesWithFreshUrls);
+        console.log(`📊 ReturningUserHomePage: Loaded ${memoriesWithFreshUrls.length} memories`);
         console.log(`📊 ReturningUserHomePage: Memory details:`, userMemories.map(m => ({ 
           id: m.id, 
           title: m.title, 

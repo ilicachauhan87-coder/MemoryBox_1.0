@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import { getSupabaseClient } from '../utils/supabase/client';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -8,27 +9,71 @@ interface ProtectedRouteProps {
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const [isChecking, setIsChecking] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if user is signed in
-    const currentUserId = localStorage.getItem('current_user_id');
-    
-    if (currentUserId) {
-      // Verify user profile exists
-      const userProfile = localStorage.getItem(`user:${currentUserId}:profile`);
-      if (userProfile) {
-        console.log('✅ ProtectedRoute: User authenticated:', currentUserId);
-        setIsAuthenticated(true);
-      } else {
-        console.warn('⚠️ ProtectedRoute: User ID found but no profile');
+    const checkAuth = async () => {
+      try {
+        // ✅ DATABASE-FIRST: Check Supabase Auth session
+        const supabase = getSupabaseClient();
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('❌ ProtectedRoute: Auth error:', error.message);
+          setIsAuthenticated(false);
+          setIsChecking(false);
+          return;
+        }
+
+        if (session?.user) {
+          const authUserId = session.user.id;
+          console.log('✅ ProtectedRoute: User authenticated:', authUserId);
+          
+          // Cache user ID to localStorage (ONLY as cache)
+          localStorage.setItem('current_user_id', authUserId);
+          
+          // Try to get user profile from database
+          try {
+            const { data: profile, error: profileError } = await supabase
+              .from('user_profiles')
+              .select('*')
+              .eq('id', authUserId)
+              .single();
+
+            if (!profileError && profile) {
+              // Cache profile to localStorage (ONLY as cache)
+              localStorage.setItem(`user:${authUserId}:profile`, JSON.stringify(profile));
+              console.log('✅ ProtectedRoute: Profile cached from database');
+            }
+          } catch (profileErr) {
+            console.warn('⚠️ ProtectedRoute: Could not load profile, but user is authenticated');
+          }
+          
+          setUserId(authUserId);
+          setIsAuthenticated(true);
+        } else {
+          console.warn('⚠️ ProtectedRoute: No active session, redirecting to sign in');
+          
+          // Clear stale localStorage data
+          localStorage.removeItem('current_user_id');
+          const keys = Object.keys(localStorage);
+          keys.forEach(key => {
+            if (key.startsWith('user:')) {
+              localStorage.removeItem(key);
+            }
+          });
+          
+          setIsAuthenticated(false);
+        }
+      } catch (error) {
+        console.error('❌ ProtectedRoute: Unexpected error:', error);
         setIsAuthenticated(false);
+      } finally {
+        setIsChecking(false);
       }
-    } else {
-      console.warn('⚠️ ProtectedRoute: No user ID found, redirecting to sign in');
-      setIsAuthenticated(false);
-    }
-    
-    setIsChecking(false);
+    };
+
+    checkAuth();
   }, []);
 
   // Show loading state while checking authentication

@@ -1071,6 +1071,35 @@ export function PregnancyJourneyPage({ userId = 'demo-user', onBack, onCaptureMe
   const [viewerFiles, setViewerFiles] = useState<any[]>([]);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
 
+  // ✏️ NEW: Edit memory detection
+  useEffect(() => {
+    const editingMemory = localStorage.getItem('editingJourneyMemory');
+    if (editingMemory) {
+      try {
+        const memory = JSON.parse(editingMemory);
+        // Verify it's a pregnancy journey memory
+        if (memory.journeyType === 'pregnancy' || memory.journey_type === 'pregnancy') {
+          // Clear the temp storage
+          localStorage.removeItem('editingJourneyMemory');
+          
+          // Navigate to memory upload with pre-populated data
+          if (onCaptureMemory) {
+            onCaptureMemory({
+              milestoneId: memory.milestoneId || memory.milestone_id,
+              milestoneTitle: memory.milestoneTitle || memory.milestone_title,
+              journeyType: 'pregnancy',
+              childId: memory.child_id, // 🔥 Include child_id for pregnancy memories
+              editingMemory: memory // Pass the full memory for editing
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load editing memory:', error);
+        localStorage.removeItem('editingJourneyMemory');
+      }
+    }
+  }, []); // Run once on mount
+
   // ✨ Load family members for engagement generation
   useEffect(() => {
     const loadFamilyMembers = () => {
@@ -1287,6 +1316,59 @@ export function PregnancyJourneyPage({ userId = 'demo-user', onBack, onCaptureMe
       window.removeEventListener('memoryAdded', handleMemoryAdded as EventListener);
     };
   }, [userId]);
+
+  // ✅ NEW: Auto-complete milestones when memories are loaded or added
+  useEffect(() => {
+    if (!isLoadingMemories && journeyMemories.length > 0 && milestones.length > 0) {
+      autoCompleteMilestonesWithMemories();
+    }
+  }, [journeyMemories, milestones.length, customMilestones.length, isLoadingMemories]);
+
+  // ✅ NEW: Auto-complete milestones that have saved memories
+  const autoCompleteMilestonesWithMemories = async () => {
+    if (journeyMemories.length === 0) return;
+    
+    // Get all milestone IDs that have memories
+    const milestoneIdsWithMemories = new Set(
+      journeyMemories
+        .filter(memory => memory.milestoneId)
+        .map(memory => memory.milestoneId)
+    );
+    
+    if (milestoneIdsWithMemories.size === 0) return;
+    
+    // Update milestones to mark those with memories as completed
+    let milestonesUpdated = false;
+    const updatedMilestones = milestones.map(m => {
+      if (milestoneIdsWithMemories.has(m.id) && !m.isCompleted) {
+        milestonesUpdated = true;
+        const completed = { ...m, isCompleted: true };
+        return generateMilestoneEngagement(completed);
+      }
+      return m;
+    });
+    
+    // Update custom milestones too
+    let customMilestonesUpdated = false;
+    const updatedCustomMilestones = customMilestones.map(m => {
+      if (milestoneIdsWithMemories.has(m.id) && !m.isCompleted) {
+        customMilestonesUpdated = true;
+        const completed = { ...m, isCompleted: true };
+        return generateMilestoneEngagement(completed);
+      }
+      return m;
+    });
+    
+    // Save if any updates were made
+    if (milestonesUpdated) {
+      console.log(`✅ Auto-completed ${Array.from(milestoneIdsWithMemories).length} milestones based on saved memories`);
+      await saveMilestones(updatedMilestones);
+    }
+    
+    if (customMilestonesUpdated) {
+      await saveCustomMilestones(updatedCustomMilestones);
+    }
+  };
 
   // 🔧 FIX: Save milestones to DATABASE (database-first model)
   const saveMilestones = async (newMilestones: Milestone[]) => {

@@ -15,6 +15,7 @@ import { errorMonitoring } from './utils/errorMonitoring';
 import { analytics } from './utils/analytics';
 import { FeedbackWidget } from './components/FeedbackWidget';
 import { metricsService } from './utils/metricsService';
+import { FigmaMakeBanner } from './components/FigmaMakeBanner';
 
 // 🚀 Lazy load all route components for better performance
 const SignInPage = lazy(() => import('./components/SignInPage').then(m => ({ default: m.SignInPage })));
@@ -862,6 +863,15 @@ const NewUserHomeWrapper = () => {
     // Help is handled via dialog on home pages, not a route
     if (page === 'help') {
       console.log('ℹ️ Help is accessed via dialog on home pages');
+      return;
+    }
+    
+    // NEW: Handle dynamic pregnancy book routes (book-pregnancy-{childId})
+    if (page.startsWith('book-pregnancy-')) {
+      const childId = page.replace('book-pregnancy-', '');
+      const route = `/vault/book/pregnancy-${childId}`;
+      console.log(`📍 Navigating to pregnancy book for child: ${childId}`);
+      navigate(route);
       return;
     }
     
@@ -1775,6 +1785,15 @@ const MemoryUploadPageWrapper = () => {
     // ✅ FIX: getHomeRoute is async, must await it
     const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
     
+    // NEW: Handle dynamic pregnancy book routes (book-pregnancy-{childId})
+    if (page.startsWith('book-pregnancy-')) {
+      const childId = page.replace('book-pregnancy-', '');
+      const route = `/vault/book/pregnancy-${childId}`;
+      console.log(`📍 Navigating to pregnancy book for child: ${childId}`);
+      navigate(route);
+      return;
+    }
+    
     // Map page names to routes
     const pageRoutes: { [key: string]: string } = {
       'home': homeRoute,
@@ -2036,6 +2055,15 @@ const VaultPageWrapper = () => {
     const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
     
     // Map page names to routes
+    // NEW: Handle dynamic pregnancy book routes (book-pregnancy-{childId})
+    if (page.startsWith('book-pregnancy-')) {
+      const childId = page.replace('book-pregnancy-', '');
+      const route = `/vault/book/pregnancy-${childId}`;
+      console.log(`📍 Navigating to pregnancy book for child: ${childId}`);
+      navigate(route);
+      return;
+    }
+    
     const pageRoutes: { [key: string]: string } = {
       'home': homeRoute,
       'vault': '/vault',
@@ -2145,7 +2173,9 @@ const BookOfLifeCoupleWrapper = () => {
       'profile': '/profile',
       'family-wall': '/wall',
       'journal': '/journal',
-      'time-capsules': '/capsules'
+      'time-capsules': '/capsules',
+      'couple-journey': '/journey/couple',  // ✅ FIX: Add couple journey route for edit
+      'pregnancy-journey': '/journey/pregnancy'  // ✅ FIX: Add pregnancy journey route for edit
     };
 
     const route = pageRoutes[page] || '/vault';
@@ -2209,10 +2239,13 @@ const BookOfLifeCoupleWrapper = () => {
 // Wrapper component for Book of Life Viewer (Pregnancy Journey)
 const BookOfLifePregnancyWrapper = () => {
   const navigate = useNavigate();
+  const location = useLocation(); // NEW: Get URL path
   const [user, setUser] = useState<any>(null);
   const [memories, setMemories] = useState<any[]>([]);
   const [bookTitle, setBookTitle] = useState("Our Baby's Journey");
   const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [childId, setChildId] = useState<string | undefined>(undefined); // NEW
+  const [childName, setChildName] = useState<string | undefined>(undefined); // NEW
 
   useEffect(() => {
     const loadData = async () => {
@@ -2223,17 +2256,48 @@ const BookOfLifePregnancyWrapper = () => {
           const userData = JSON.parse(userProfile);
           setUser(userData);
           
+          // NEW: Extract child_id from URL path (format: /vault/book/pregnancy-{childId})
+          const pathMatch = location.pathname.match(/\/vault\/book\/pregnancy-(.+)/);
+          const extractedChildId = pathMatch ? pathMatch[1] : undefined;
+          setChildId(extractedChildId);
+          
           // Load memories from database
           if (userData.family_id) {
             try {
               const allMemories = await DatabaseService.getFamilyMemories(userData.family_id);
-              const pregnancyMemories = allMemories.filter((m: any) => m.journey_type === 'pregnancy');
+              
+              // 🔧 CRITICAL FIX: Filter by journey type AND child_id
+              let pregnancyMemories = allMemories.filter((m: any) => m.journey_type === 'pregnancy');
+              
+              // If viewing specific child's book, filter by child_id
+              if (extractedChildId && extractedChildId !== 'unassigned' && extractedChildId !== 'unborn') {
+                pregnancyMemories = pregnancyMemories.filter((m: any) => m.child_id === extractedChildId);
+                console.log(`📚 Pregnancy Book Filter: Showing ${pregnancyMemories.length} memories for child: ${extractedChildId}`);
+              } else {
+                console.log(`📚 Pregnancy Book Filter: Showing all ${pregnancyMemories.length} pregnancy memories (no child-specific filter)`);
+              }
+              
               setMemories(pregnancyMemories);
               
-              // Load book title from preferences
+              // NEW: Load child name from family tree if childId is provided
+              if (extractedChildId && extractedChildId !== 'unborn' && extractedChildId !== 'unassigned') {
+                try {
+                  const children = await DatabaseService.getChildrenFromFamilyTree(userData.family_id);
+                  const child = children.find((c: any) => c.id === extractedChildId);
+                  if (child) {
+                    setChildName(child.name);
+                  }
+                } catch (error) {
+                  console.error('Failed to load child data:', error);
+                }
+              }
+              
+              // Load book title from preferences (check child-specific first, then fallback)
               const prefs = await DatabaseService.getBookPreferences(currentUserId);
-              if (prefs?.pregnancy) {
-                setBookTitle(prefs.pregnancy);
+              if (extractedChildId && prefs[extractedChildId]) {
+                setBookTitle(prefs[extractedChildId]); // Child-specific title
+              } else if (prefs.pregnancy) {
+                setBookTitle(prefs.pregnancy); // Fallback to generic pregnancy title
               }
             } catch (error) {
               console.error('Failed to load memories:', error);
@@ -2245,7 +2309,7 @@ const BookOfLifePregnancyWrapper = () => {
     };
 
     loadData();
-  }, []);
+  }, [location.pathname]); // NEW: Reload when URL changes (switching between children)
 
   const handleNavigate = async (page: string) => {
     const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
@@ -2258,7 +2322,9 @@ const BookOfLifePregnancyWrapper = () => {
       'profile': '/profile',
       'family-wall': '/wall',
       'journal': '/journal',
-      'time-capsules': '/capsules'
+      'time-capsules': '/capsules',
+      'couple-journey': '/journey/couple',  // ✅ FIX: Add couple journey route for edit
+      'pregnancy-journey': '/journey/pregnancy'  // ✅ FIX: Add pregnancy journey route for edit
     };
 
     const route = pageRoutes[page] || '/vault';
@@ -2274,7 +2340,18 @@ const BookOfLifePregnancyWrapper = () => {
     if (user?.family_id) {
       try {
         const allMemories = await DatabaseService.getFamilyMemories(user.family_id);
-        const pregnancyMemories = allMemories.filter((m: any) => m.journey_type === 'pregnancy');
+        
+        // 🔧 CRITICAL FIX: Filter by journey type AND child_id (same as initial load)
+        let pregnancyMemories = allMemories.filter((m: any) => m.journey_type === 'pregnancy');
+        
+        // If viewing specific child's book, filter by child_id
+        if (childId && childId !== 'unassigned' && childId !== 'unborn') {
+          pregnancyMemories = pregnancyMemories.filter((m: any) => m.child_id === childId);
+          console.log(`📚 After Delete: Reloaded ${pregnancyMemories.length} memories for child: ${childId}`);
+        } else {
+          console.log(`📚 After Delete: Reloaded all ${pregnancyMemories.length} pregnancy memories`);
+        }
+        
         setMemories(pregnancyMemories);
       } catch (error) {
         console.error('Failed to reload memories:', error);
@@ -2308,6 +2385,8 @@ const BookOfLifePregnancyWrapper = () => {
           onBack={handleBack}
           onNavigate={handleNavigate}
           onMemoryDeleted={handleMemoryDeleted}
+          childId={childId} // NEW: Pass child ID for filtering
+          childName={childName} // NEW: Pass child name for display
         />
       </div>
       <BottomNavigation 
@@ -2440,6 +2519,15 @@ const ReturningUserHomeWrapper = () => {
     
     // ✅ FIX: getHomeRoute is async, must await it
     const homeRoute = page === 'home' ? await getHomeRoute() : '/home';
+    
+    // NEW: Handle dynamic pregnancy book routes (book-pregnancy-{childId})
+    if (page.startsWith('book-pregnancy-')) {
+      const childId = page.replace('book-pregnancy-', '');
+      const route = `/vault/book/pregnancy-${childId}`;
+      console.log(`📍 Navigating to pregnancy book for child: ${childId}`);
+      navigate(route);
+      return;
+    }
     
     // Map page names to routes
     const pageRoutes: { [key: string]: string } = {
@@ -2682,7 +2770,19 @@ const CoupleJourneyWrapper = () => {
 
   const handleCaptureMemory = (milestoneData: any) => {
     console.log('📸 Capturing memory for milestone:', milestoneData);
-    navigate('/upload', { state: { milestoneContext: milestoneData } });
+    
+    // ✏️ NEW: Check if this is edit mode and pass editMemory through state
+    if (milestoneData.editingMemory) {
+      console.log('✏️ Edit mode detected - passing editingMemory to upload page');
+      navigate('/upload', { 
+        state: { 
+          milestoneContext: milestoneData,
+          editMemory: milestoneData.editingMemory 
+        } 
+      });
+    } else {
+      navigate('/upload', { state: { milestoneContext: milestoneData } });
+    }
   };
 
   return (
@@ -2792,7 +2892,19 @@ const PregnancyJourneyWrapper = () => {
 
   const handleCaptureMemory = (milestoneData: any) => {
     console.log('📸 Capturing memory for milestone:', milestoneData);
-    navigate('/upload', { state: { milestoneContext: milestoneData } });
+    
+    // ✏️ NEW: Check if this is edit mode and pass editMemory through state
+    if (milestoneData.editingMemory) {
+      console.log('✏️ Edit mode detected - passing editingMemory to upload page');
+      navigate('/upload', { 
+        state: { 
+          milestoneContext: milestoneData,
+          editMemory: milestoneData.editingMemory 
+        } 
+      });
+    } else {
+      navigate('/upload', { state: { milestoneContext: milestoneData } });
+    }
   };
 
   return (
@@ -3592,6 +3704,7 @@ const App: React.FC = () => {
               <Route path="/vault" element={<ProtectedRoute><VaultPageWrapper /></ProtectedRoute>} />
               <Route path="/vault/book/couple" element={<ProtectedRoute><BookOfLifeCoupleWrapper /></ProtectedRoute>} />
               <Route path="/vault/book/pregnancy" element={<ProtectedRoute><BookOfLifePregnancyWrapper /></ProtectedRoute>} />
+              <Route path="/vault/book/pregnancy-:childId" element={<ProtectedRoute><BookOfLifePregnancyWrapper /></ProtectedRoute>} /> {/* NEW: Child-specific pregnancy book */}
               <Route path="/upload" element={<ProtectedRoute><MemoryUploadPageWrapper /></ProtectedRoute>} />
               <Route path="/journal" element={<ProtectedRoute><JournalPageWrapper /></ProtectedRoute>} />
               <Route path="/journey" element={<ProtectedRoute><JourneySelectionWrapper /></ProtectedRoute>} />

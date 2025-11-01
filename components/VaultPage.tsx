@@ -300,7 +300,7 @@ export const VaultPage: React.FC<VaultPageProps> = ({ user, family, onNavigate }
         }
         
         // 🔧 FIX: Refresh file URLs for multimedia (prevents blank thumbnails)
-        const { refreshAllMemoryFileUrls } = await import('../utils/memoryUrlRefresh');
+        const { refreshAllMemoryFileUrls } = await import('../utils/memoryUrlRefresh.ts');
         const memoriesWithFreshUrls = await refreshAllMemoryFileUrls(userMemories);
         
         // ✅ NEW: Transform memories to include people names instead of just IDs

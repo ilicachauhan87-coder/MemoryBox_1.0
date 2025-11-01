@@ -15,7 +15,6 @@ import { errorMonitoring } from './utils/errorMonitoring';
 import { analytics } from './utils/analytics';
 import { FeedbackWidget } from './components/FeedbackWidget';
 import { metricsService } from './utils/metricsService';
-import { FigmaMakeBanner } from './components/FigmaMakeBanner';
 
 // 🚀 Lazy load all route components for better performance
 const SignInPage = lazy(() => import('./components/SignInPage').then(m => ({ default: m.SignInPage })));
@@ -3673,7 +3672,6 @@ const App: React.FC = () => {
           <ScrollToTop />
           <Toaster position="top-center" richColors />
           <FeedbackWidget />
-          <FigmaMakeBanner />
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public routes - No authentication required */}

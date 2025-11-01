@@ -2183,8 +2183,66 @@ const BookOfLifeCoupleWrapper = () => {
           try {
             const allMemories = await DatabaseService.getFamilyMemories(userData.family_id);
             const coupleMemories = allMemories.filter((m: any) => m.journey_type === 'couple');
-            setMemories(coupleMemories);
-            console.log(`✅ BookOfLifeCoupleWrapper: Loaded ${coupleMemories.length} couple memories`);
+            
+            // ✅ NEW: Load family tree to resolve people names
+            let familyTreeData: any = null;
+            try {
+              familyTreeData = await DatabaseService.getFamilyTree(userData.family_id);
+            } catch (error) {
+              console.warn('⚠️ BookOfLifeCoupleWrapper: Could not load family tree:', error);
+            }
+            
+            // ✅ ROBUST FIX: Transform memories to include people names
+            const memoriesWithPeople = coupleMemories.map((memory: any) => {
+              const peopleInvolved = memory.people_involved || memory.people_ids || memory.person_tags || [];
+              
+              // 🔧 CRITICAL FIX: getFamilyTree() returns { people: [...], relationships: [...] }
+              // NOT { tree_data: { members: [...] } }
+              const treeMembers = familyTreeData?.people || [];
+              
+              if (peopleInvolved.length > 0 && treeMembers.length > 0) {
+                // 🔧 CRITICAL: Build proper name for matching
+                const people = peopleInvolved.map((personIdOrName: string) => {
+                  // Try matching by full name field
+                  let person = treeMembers.find((m: any) => {
+                    const fullName = m.name || `${m.firstName || ''} ${m.lastName || ''}`.trim();
+                    return fullName === personIdOrName;
+                  });
+                  
+                  // Fallback: Try matching by ID
+                  if (!person) {
+                    person = treeMembers.find((m: any) => m.id === personIdOrName);
+                  }
+                  
+                  if (person) {
+                    const resultName = person.name || `${person.firstName || ''} ${person.lastName || ''}`.trim();
+                    return { id: person.id, name: resultName };
+                  }
+                  return null;
+                }).filter(Boolean);
+                
+                return { ...memory, people };
+              }
+              
+              return { ...memory, people: [] };
+            });
+            
+            setMemories(memoriesWithPeople);
+            
+            // 🔍 DIAGNOSTIC: Log transformation results
+            const successfulTransforms = memoriesWithPeople.filter(m => m.people && m.people.length > 0).length;
+            console.log(`✅ BookOfLifeCoupleWrapper: Loaded ${memoriesWithPeople.length} couple memories`);
+            console.log(`   📊 People Display Status: ${successfulTransforms}/${memoriesWithPeople.length} memories have resolved people names`);
+            
+            if (successfulTransforms < memoriesWithPeople.length) {
+              const failed = memoriesWithPeople.filter(m => !m.people || m.people.length === 0);
+              console.log(`   ⚠️ Memories without people:`, failed.map(m => ({ 
+                title: m.title, 
+                people_involved: m.people_involved,
+                people_ids: m.people_ids,
+                person_tags: m.person_tags
+              })));
+            }
             
             // Load book title from preferences
             const prefs = await DatabaseService.getBookPreferences(currentUserId);
@@ -2365,7 +2423,65 @@ const BookOfLifePregnancyWrapper = () => {
               console.log(`📚 Pregnancy Book Filter: Showing all ${pregnancyMemories.length} pregnancy memories (no child-specific filter)`);
             }
             
-            setMemories(pregnancyMemories);
+            // ✅ NEW: Load family tree to resolve people names
+            let familyTreeData: any = null;
+            try {
+              familyTreeData = await DatabaseService.getFamilyTree(userData.family_id);
+            } catch (error) {
+              console.warn('⚠️ BookOfLifePregnancyWrapper: Could not load family tree:', error);
+            }
+            
+            // ✅ ROBUST FIX: Transform memories to include people names
+            const memoriesWithPeople = pregnancyMemories.map((memory: any) => {
+              const peopleInvolved = memory.people_involved || memory.people_ids || memory.person_tags || [];
+              
+              // 🔧 CRITICAL FIX: getFamilyTree() returns { people: [...], relationships: [...] }
+              // NOT { tree_data: { members: [...] } }
+              const treeMembers = familyTreeData?.people || [];
+              
+              if (peopleInvolved.length > 0 && treeMembers.length > 0) {
+                // 🔧 CRITICAL: Build proper name for matching
+                const people = peopleInvolved.map((personIdOrName: string) => {
+                  // Try matching by full name field
+                  let person = treeMembers.find((m: any) => {
+                    const fullName = m.name || `${m.firstName || ''} ${m.lastName || ''}`.trim();
+                    return fullName === personIdOrName;
+                  });
+                  
+                  // Fallback: Try matching by ID
+                  if (!person) {
+                    person = treeMembers.find((m: any) => m.id === personIdOrName);
+                  }
+                  
+                  if (person) {
+                    const resultName = person.name || `${person.firstName || ''} ${person.lastName || ''}`.trim();
+                    return { id: person.id, name: resultName };
+                  }
+                  return null;
+                }).filter(Boolean);
+                
+                return { ...memory, people };
+              }
+              
+              return { ...memory, people: [] };
+            });
+            
+            setMemories(memoriesWithPeople);
+            
+            // 🔍 DIAGNOSTIC: Log transformation results
+            const successfulTransforms = memoriesWithPeople.filter(m => m.people && m.people.length > 0).length;
+            console.log(`✅ BookOfLifePregnancyWrapper: Loaded ${memoriesWithPeople.length} pregnancy memories`);
+            console.log(`   📊 People Display Status: ${successfulTransforms}/${memoriesWithPeople.length} memories have resolved people names`);
+            
+            if (successfulTransforms < memoriesWithPeople.length) {
+              const failed = memoriesWithPeople.filter(m => !m.people || m.people.length === 0);
+              console.log(`   ⚠️ Memories without people:`, failed.map(m => ({ 
+                title: m.title, 
+                people_involved: m.people_involved,
+                people_ids: m.people_ids,
+                person_tags: m.person_tags
+              })));
+            }
             
             // NEW: Load child name from family tree if childId is provided
             if (extractedChildId && extractedChildId !== 'unborn' && extractedChildId !== 'unassigned') {

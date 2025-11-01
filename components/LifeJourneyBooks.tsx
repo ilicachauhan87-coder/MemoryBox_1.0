@@ -3,7 +3,7 @@ import { Edit2, BookOpen, Heart, Baby, Calendar, MapPin, Sparkles, ChevronLeft, 
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { toast } from 'sonner@2.0.3';
-import { motion, AnimatePresence } from 'motion/react'; // NEW: For animations
+import { motion, AnimatePresence } from 'framer-motion'; // For animations
 import { useBookPreferences } from '../hooks/useBookPreferences';
 import { hapticFeedback } from '../utils/hapticFeedback';
 import { DatabaseService } from '../utils/supabase/persistent-database'; // NEW: For loading family tree

@@ -1515,7 +1515,7 @@ const InteractiveFamilyTreeApp: React.FC<FamilyTreeAppProps> = ({ onBack }) => {
         const needsAutoFix = !dbTree || peopleArray.length === 0;
         
         if (needsAutoFix) {
-            console.log('🔧 AUTO-FIX: Tree is empty or missing, creating root user from user profile...');
+            console.log('🔧 AUTO-FIX: Tree is empty in database, creating root user for brand new family...');
             console.log('   dbTree exists:', !!dbTree);
             console.log('   peopleArray length:', peopleArray.length);
             
@@ -1769,13 +1769,37 @@ const InteractiveFamilyTreeApp: React.FC<FamilyTreeAppProps> = ({ onBack }) => {
       DatabaseService.saveFamilyTree(userData.family_id, treeToSave)
         .then(() => {
           console.log('✅ Family tree saved to database successfully');
+          // Show success confirmation only once per session to avoid spam
+          if (!sessionStorage.getItem('tree_sync_confirmed_session')) {
+            toast.success('✅ Family tree synced to cloud!', { duration: 2000 });
+            sessionStorage.setItem('tree_sync_confirmed_session', 'true');
+          }
         })
         .catch((error) => {
           console.error('❌ Failed to save family tree to database:', error);
-          // Don't block the app - localStorage is backup
+          
+          // 🔧 CRITICAL FIX: Notify user of sync failure (was silent before!)
+          toast.error('⚠️ Cloud sync failed. Changes saved on this device only.', {
+            duration: 7000,
+            description: 'Please check your internet connection. Your data is safe locally.',
+          });
+          
+          // Track error for debugging
+          import('../utils/errorMonitoring').then(({ errorMonitoring }) => {
+            errorMonitoring.logError('FamilyTreeDatabaseSaveFailed', error, {
+              familyId: userData.family_id,
+              peopleCount: familyTree.people.length,
+              relationshipsCount: familyTree.relationships.length,
+              timestamp: new Date().toISOString()
+            });
+          }).catch(() => {
+            // Error monitoring failed, just log
+            console.warn('⚠️ Could not log error to monitoring service');
+          });
         });
     }).catch((error) => {
       console.error('❌ Failed to load database module:', error);
+      toast.error('⚠️ Database module failed to load. Changes saved locally only.');
     });
   }, [familyTree]);
 
@@ -1996,67 +2020,13 @@ const InteractiveFamilyTreeApp: React.FC<FamilyTreeAppProps> = ({ onBack }) => {
     return 0; // Ultimate fallback
   }, [familyTree.people, familyTree.relationships]);
 
-  // 🔧 COMPREHENSIVE FIX: Ensure root user exists with correct ID
-  // This fixes the white screen crash while ensuring tree always has root user
-  // IMPORTANT: Only runs as FALLBACK after database load is complete
-  useEffect(() => {
-    // Only run if database load is complete AND tree is still empty
-    if (!isDatabaseLoaded || familyTree.people.length > 0) return;
-
-    console.log('📊 Tree is empty after database load - checking if root user needs to be created');
-
-    // Get current user ID
-    const currentUserId = localStorage.getItem('current_user_id');
-    if (!currentUserId) {
-      console.error('❌ No current user ID found - cannot create root user');
-      return;
-    }
-
-    // Get user profile for gender and name
-    const userProfile = localStorage.getItem(`user:${currentUserId}:profile`);
-    let userGender: 'male' | 'female' = 'male';
-    let userName = 'You';
-    
-    if (userProfile) {
-      try {
-        const userData = JSON.parse(userProfile);
-        userGender = userData.gender?.toLowerCase() === 'female' ? 'female' : 'male';
-        userName = userData.firstName || userData.name || 'You';
-      } catch (e) {
-        console.warn('⚠️ Failed to parse user profile, using defaults');
-      }
-    }
-
-    // Calculate center position
-    const centerSlot = Math.floor(GRID_CONFIG.getSlotCount() / 2);
-    const rootUser: InteractivePerson = {
-      id: currentUserId, // ✅ Use actual user ID (not hardcoded 'root')
-      firstName: userName,
-      gender: userGender,
-      status: 'alive',
-      generation: 0,
-      isRoot: true,
-      gridSlot: centerSlot,
-      position: { 
-        x: GRID_CONFIG.getSlotX(centerSlot), 
-        y: GENERATION_Y_POSITIONS['0'] 
-      }
-    };
-
-    console.log('🚀 Creating root user for empty tree');
-    console.log('   User ID:', currentUserId, 'Gender:', userGender, 'Name:', userName);
-    console.log('   Position:', rootUser.position);
-    
-    setFamilyTree(prev => ({
-      ...prev,
-      people: [rootUser],
-      rootUserId: currentUserId,
-      generationLimits: {
-        ...prev.generationLimits,
-        '0': { current: 1, max: 78 }
-      }
-    }));
-  }, [familyTree.people.length, isDatabaseLoaded]); // Re-run when people count changes OR database load completes
+  // ❌ REMOVED: This useEffect was causing empty tree overwrites
+  // The auto-fix code at lines 1511-1584 already handles empty tree scenarios correctly
+  // This useEffect was redundant and dangerous because:
+  // 1. It triggered when isDatabaseLoaded changed to true
+  // 2. If RLS blocked database read, familyTree.people.length === 0
+  // 3. It created root user and OVERWROTE existing 8 people with 1 person
+  // The database-first auto-fix at line 1517-1584 is the ONLY place that should create root users
 
   // Calculate current counts for each generation
   const updateGenerationCounts = useCallback((people: InteractivePerson[]) => {
@@ -4004,6 +3974,9 @@ const InteractiveFamilyTreeApp: React.FC<FamilyTreeAppProps> = ({ onBack }) => {
     });
     
     toast.success(`🎉 Created your nuclear family with ${newPeople.length + 1} people and ${newRelationships.length} relationships!`);
+    
+    // Note: Tree auto-saves to database via useEffect (line 1767-1800)
+    // No need for manual save here - the setFamilyTree above triggers auto-save
     
     // Inform user about manual addition for future members
     setTimeout(() => {

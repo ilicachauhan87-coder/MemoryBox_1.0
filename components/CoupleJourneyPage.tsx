@@ -906,7 +906,7 @@ const DEFAULT_MILESTONES: Milestone[] = [
   }
 ];
 
-export function CoupleJourneyPage({ userId = 'demo-user', onBack, onCaptureMemory }: CoupleJourneyPageProps) {
+export function CoupleJourneyPage({ userId, onBack, onCaptureMemory }: CoupleJourneyPageProps) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [customMilestones, setCustomMilestones] = useState<Milestone[]>([]);
   const [activePhase, setActivePhase] = useState<string>('courtship');
@@ -1225,19 +1225,25 @@ export function CoupleJourneyPage({ userId = 'demo-user', onBack, onCaptureMemor
     if (!userId) return;
     
     try {
-      // Save to DATABASE
+      // Save to DATABASE (database-first - no localStorage fallback)
       const { DatabaseService } = await import('../utils/supabase/persistent-database');
       await DatabaseService.saveJourneyProgress(userId, 'couple', {
         milestones: newMilestones,
         customMilestones
       });
-      console.log(`✅ Saved couple journey to database`);
+      console.log(`✅ couple journey saved to database`);
       
-      // Also cache in localStorage
-      localStorage.setItem(`couple_journey_${userId}`, JSON.stringify(newMilestones));
+      // Cache in localStorage ONLY after successful database save
+      try {
+        localStorage.setItem(`couple_journey_${userId}`, JSON.stringify(newMilestones));
+      } catch (storageError) {
+        // Ignore localStorage errors in incognito mode - database is primary
+        console.log('ℹ️ localStorage cache unavailable (incognito mode) - data saved to database');
+      }
     } catch (error) {
-      console.warn('⚠️ Database save failed, saving to localStorage only:', error);
-      localStorage.setItem(`couple_journey_${userId}`, JSON.stringify(newMilestones));
+      console.error('❌ Failed to save couple journey:', error);
+      toast.error('Failed to save milestone. Please check your connection and try again.');
+      throw error; // Don't silently fail
     }
   };
 
@@ -1248,19 +1254,25 @@ export function CoupleJourneyPage({ userId = 'demo-user', onBack, onCaptureMemor
     if (!userId) return;
     
     try {
-      // Save to DATABASE
+      // Save to DATABASE (database-first - no localStorage fallback)
       const { DatabaseService } = await import('../utils/supabase/persistent-database');
       await DatabaseService.saveJourneyProgress(userId, 'couple', {
         milestones,
         customMilestones: newCustomMilestones
       });
-      console.log(`✅ Saved custom couple journey milestones to database`);
+      console.log(`✅ custom couple journey milestones saved to database`);
       
-      // Also cache in localStorage
-      localStorage.setItem(`couple_journey_custom_${userId}`, JSON.stringify(newCustomMilestones));
+      // Cache in localStorage ONLY after successful database save
+      try {
+        localStorage.setItem(`couple_journey_custom_${userId}`, JSON.stringify(newCustomMilestones));
+      } catch (storageError) {
+        // Ignore localStorage errors in incognito mode - database is primary
+        console.log('ℹ️ localStorage cache unavailable (incognito mode) - data saved to database');
+      }
     } catch (error) {
-      console.warn('⚠️ Database save failed, saving to localStorage only:', error);
-      localStorage.setItem(`couple_journey_custom_${userId}`, JSON.stringify(newCustomMilestones));
+      console.error('❌ Failed to save custom couple journey:', error);
+      toast.error('Failed to save custom milestone. Please check your connection and try again.');
+      throw error; // Don't silently fail
     }
   };
 

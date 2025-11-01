@@ -38,6 +38,11 @@ export const MemoryMediaViewer: React.FC<MemoryMediaViewerProps> = ({
   const [audioRef, setAudioRef] = useState<HTMLAudioElement | null>(null);
   const [isFullscreenSupported, setIsFullscreenSupported] = useState(false);
 
+  // Safety check: if files is undefined, null, or empty, return null
+  if (!files || files.length === 0) {
+    return null;
+  }
+
   const currentFile = files[currentIndex];
   const hasPrevious = currentIndex > 0;
   const hasNext = currentIndex < files.length - 1;

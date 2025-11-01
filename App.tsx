@@ -2058,7 +2058,7 @@ const VaultPageWrapper = () => {
     // NEW: Handle dynamic pregnancy book routes (book-pregnancy-{childId})
     if (page.startsWith('book-pregnancy-')) {
       const childId = page.replace('book-pregnancy-', '');
-      const route = `/vault/book/pregnancy-${childId}`;
+      const route = `/vault/book/pregnancy/${childId}`;
       console.log(`📍 Navigating to pregnancy book for child: ${childId}`);
       navigate(route);
       return;
@@ -2145,28 +2145,34 @@ const BookOfLifeCoupleWrapper = () => {
         const currentUserId = session.user.id;
         console.log('✅ BookOfLifeCoupleWrapper: Loading data for user:', currentUserId);
 
-        // ✅ DATABASE-FIRST: Load user profile from database
-        const { data: profile, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('id', currentUserId)
-          .single();
+        // ✅ DATABASE-FIRST: Load user profile from database using DatabaseService
+        const { DatabaseService } = await import('./utils/supabase/persistent-database');
+        let userData: any = null;
+        
+        try {
+          const profile = await DatabaseService.getUserProfile(currentUserId);
+          
+          if (!profile) {
+            console.error('❌ BookOfLifeCoupleWrapper: No profile found for user');
+            navigate('/signin');
+            return;
+          }
 
-        if (profileError || !profile) {
+          userData = {
+            ...profile,
+            id: profile.id,
+            email: session.user.email || profile.email,
+            family_id: profile.family_id
+          };
+          
+          console.log('✅ BookOfLifeCoupleWrapper: User profile loaded from database');
+        } catch (profileError) {
           console.error('❌ BookOfLifeCoupleWrapper: Failed to load profile:', profileError);
           navigate('/signin');
           return;
         }
-
-        const userData = {
-          ...profile,
-          id: profile.id,
-          email: session.user.email,
-          family_id: profile.family_id
-        };
         
         setUser(userData);
-        console.log('✅ BookOfLifeCoupleWrapper: User profile loaded from database');
         
         // Cache to localStorage (ONLY as cache)
         localStorage.setItem('current_user_id', currentUserId);
@@ -2301,14 +2307,21 @@ const BookOfLifePregnancyWrapper = () => {
         const currentUserId = session.user.id;
         console.log('✅ BookOfLifePregnancyWrapper: Loading data for user:', currentUserId);
 
-        // ✅ DATABASE-FIRST: Load user profile from database
-        const { data: profile, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('id', currentUserId)
-          .single();
-
-        if (profileError || !profile) {
+        // ✅ DATABASE-FIRST: Load user profile from database using DatabaseService
+        const { DatabaseService } = await import('./utils/supabase/persistent-database');
+        let profile: any = null;
+        
+        try {
+          profile = await DatabaseService.getUserProfile(currentUserId);
+          
+          if (!profile) {
+            console.error('❌ BookOfLifePregnancyWrapper: No profile found for user');
+            navigate('/signin');
+            return;
+          }
+          
+          console.log('✅ BookOfLifePregnancyWrapper: User profile loaded from database');
+        } catch (profileError) {
           console.error('❌ BookOfLifePregnancyWrapper: Failed to load profile:', profileError);
           navigate('/signin');
           return;
@@ -3815,7 +3828,7 @@ const App: React.FC = () => {
               <Route path="/vault" element={<ProtectedRoute><VaultPageWrapper /></ProtectedRoute>} />
               <Route path="/vault/book/couple" element={<ProtectedRoute><BookOfLifeCoupleWrapper /></ProtectedRoute>} />
               <Route path="/vault/book/pregnancy" element={<ProtectedRoute><BookOfLifePregnancyWrapper /></ProtectedRoute>} />
-              <Route path="/vault/book/pregnancy-:childId" element={<ProtectedRoute><BookOfLifePregnancyWrapper /></ProtectedRoute>} /> {/* NEW: Child-specific pregnancy book */}
+              <Route path="/vault/book/pregnancy/:childId" element={<ProtectedRoute><BookOfLifePregnancyWrapper /></ProtectedRoute>} /> {/* NEW: Child-specific pregnancy book */}
               <Route path="/upload" element={<ProtectedRoute><MemoryUploadPageWrapper /></ProtectedRoute>} />
               <Route path="/journal" element={<ProtectedRoute><JournalPageWrapper /></ProtectedRoute>} />
               <Route path="/journey" element={<ProtectedRoute><JourneySelectionWrapper /></ProtectedRoute>} />

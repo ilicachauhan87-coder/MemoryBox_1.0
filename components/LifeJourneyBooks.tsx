@@ -3,8 +3,10 @@ import { Edit2, BookOpen, Heart, Baby, Calendar, MapPin, Sparkles, ChevronLeft, 
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { toast } from 'sonner@2.0.3';
+import { motion, AnimatePresence } from 'motion/react'; // NEW: For animations
 import { useBookPreferences } from '../hooks/useBookPreferences';
 import { hapticFeedback } from '../utils/hapticFeedback';
+import { DatabaseService } from '../utils/supabase/persistent-database'; // NEW: For loading family tree
 import type { Memory } from '../utils/supabase/client';
 import '../styles/book-animations.css';
 
@@ -26,6 +28,8 @@ interface BookData {
   memoryCount: number;
   dateRange: string;
   lastMemoryDate: string | null;
+  childId?: string; // NEW: Child ID for pregnancy books
+  childName?: string; // NEW: Child name for pregnancy books
 }
 
 export const LifeJourneyBooks: React.FC<LifeJourneyBooksProps> = ({
@@ -38,6 +42,7 @@ export const LifeJourneyBooks: React.FC<LifeJourneyBooksProps> = ({
   const [editValue, setEditValue] = useState('');
   const [activeBookIndex, setActiveBookIndex] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [familyTreePeople, setFamilyTreePeople] = useState<any[]>([]); // NEW: Family tree data
   
   // Swipe gesture state
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -46,6 +51,29 @@ export const LifeJourneyBooks: React.FC<LifeJourneyBooksProps> = ({
 
   // Minimum swipe distance (in px) to trigger navigation
   const minSwipeDistance = 50;
+
+  // Load family tree data for child names
+  useEffect(() => {
+    const loadFamilyTree = async () => {
+      const currentUserId = localStorage.getItem('current_user_id');
+      if (!currentUserId) return;
+      
+      try {
+        const userProfile = localStorage.getItem(`user:${currentUserId}:profile`);
+        if (userProfile) {
+          const userData = JSON.parse(userProfile);
+          if (userData.family_id) {
+            const familyTreeData = await DatabaseService.getChildrenFromFamilyTree(userData.family_id);
+            setFamilyTreePeople(familyTreeData);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load family tree:', error);
+      }
+    };
+    
+    loadFamilyTree();
+  }, []);
 
   // Filter memories by journey type
   const coupleMemories = memories.filter(m => m.journey_type === 'couple');
@@ -81,6 +109,7 @@ export const LifeJourneyBooks: React.FC<LifeJourneyBooksProps> = ({
   // Build book data
   const books: BookData[] = [];
   
+  // Add couple book (one book total)
   if (coupleMemories.length > 0) {
     books.push({
       id: 'couple',
@@ -97,19 +126,56 @@ export const LifeJourneyBooks: React.FC<LifeJourneyBooksProps> = ({
     });
   }
   
+  // Add pregnancy books (ONE BOOK PER CHILD - NEW LOGIC)
   if (pregnancyMemories.length > 0) {
-    books.push({
-      id: 'pregnancy',
-      type: 'pregnancy',
-      title: preferences.pregnancy || "Our Baby's Journey",
-      icon: Baby,
-      emoji: '👶',
-      gradient: 'from-[#17BEBB] to-[#6A0572]', // MemoryBox: Aqua to Violet
-      spineColor: 'bg-[#17BEBB]',
-      memories: pregnancyMemories,
-      memoryCount: pregnancyMemories.length,
-      dateRange: getDateRange(pregnancyMemories),
-      lastMemoryDate: getLastMemoryDate(pregnancyMemories)
+    // Group pregnancy memories by child_id
+    const memoriesByChild = new Map<string, Memory[]>();
+    
+    pregnancyMemories.forEach(memory => {
+      const childId = (memory as any).child_id || 'unassigned';
+      if (!memoriesByChild.has(childId)) {
+        memoriesByChild.set(childId, []);
+      }
+      memoriesByChild.get(childId)!.push(memory);
+    });
+    
+    // Create one book per child
+    memoriesByChild.forEach((childMemories, childId) => {
+      // Find child info from family tree
+      const child = familyTreePeople.find(p => p.id === childId);
+      
+      // Get custom title from preferences (keyed by child_id)
+      const customTitle = preferences[childId];
+      
+      // Determine book title
+      let bookTitle: string;
+      if (customTitle) {
+        bookTitle = customTitle;
+      } else if (child && child.name) {
+        bookTitle = `${child.name}'s Journey`;
+      } else if (childId === 'unborn') {
+        bookTitle = "Baby's Journey (Expected)";
+      } else if (childId === 'unassigned') {
+        bookTitle = "Pregnancy Journey";
+      } else {
+        bookTitle = "Baby's Journey";
+      }
+      
+      books.push({
+        id: `pregnancy-${childId}`,
+        type: 'pregnancy',
+        title: bookTitle,
+        icon: Baby,
+        emoji: '👶',
+        gradient: 'from-[#17BEBB] to-[#6A0572]', // MemoryBox: Aqua to Violet
+        spineColor: 'bg-[#17BEBB]',
+        memories: childMemories,
+        memoryCount: childMemories.length,
+        dateRange: getDateRange(childMemories),
+        lastMemoryDate: getLastMemoryDate(childMemories),
+        childId: childId !== 'unassigned' ? childId : undefined, // NEW
+        childName: child?.name // NEW
+      });
     });
   }
 
@@ -164,7 +230,7 @@ export const LifeJourneyBooks: React.FC<LifeJourneyBooksProps> = ({
     setEditValue(book.title);
   };
 
-  const handleSaveTitle = async (bookType: 'couple' | 'pregnancy') => {
+  const handleSaveTitle = async (bookType: 'couple' | 'pregnancy', childId?: string) => {
     if (!editValue.trim()) {
       toast.error('Book title cannot be empty');
       hapticFeedback.error();
@@ -178,7 +244,7 @@ export const LifeJourneyBooks: React.FC<LifeJourneyBooksProps> = ({
     }
 
     try {
-      await updateTitle(bookType, editValue.trim());
+      await updateTitle(bookType, editValue.trim(), childId); // NEW: Pass child_id
       hapticFeedback.success();
       setEditingBook(null);
     } catch (error) {
@@ -189,13 +255,18 @@ export const LifeJourneyBooks: React.FC<LifeJourneyBooksProps> = ({
 
   const handleBookClick = async (book: BookData) => {
     hapticFeedback.select();
-    await markAsOpened(book.type);
+    await markAsOpened(book.type, book.childId); // NEW: Pass child_id
     
-    // Navigate to Book of Life viewer instead of journey creation pages
+    // Navigate to Book of Life viewer
     if (book.type === 'couple') {
       onNavigate('book-couple');
     } else {
-      onNavigate('book-pregnancy');
+      // NEW: Include child_id in navigation for pregnancy books
+      if (book.childId) {
+        onNavigate(`book-pregnancy-${book.childId}`);
+      } else {
+        onNavigate('book-pregnancy');
+      }
     }
   };
 
@@ -478,7 +549,7 @@ export const LifeJourneyBooks: React.FC<LifeJourneyBooksProps> = ({
                 onChange={(e) => setEditValue(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    handleSaveTitle(book.type);
+                    handleSaveTitle(book.type, book.childId); // NEW: Pass child_id
                   } else if (e.key === 'Escape') {
                     setEditingBook(null);
                   }
@@ -491,7 +562,7 @@ export const LifeJourneyBooks: React.FC<LifeJourneyBooksProps> = ({
               <div className="flex gap-2 mt-2">
                 <Button
                   size="sm"
-                  onClick={() => handleSaveTitle(book.type)}
+                  onClick={() => handleSaveTitle(book.type, book.childId)} // NEW: Pass child_id
                   className="flex-1 bg-white hover:bg-white/90"
                   style={{ color: '#6A0572', fontSize: '13px' }}
                 >

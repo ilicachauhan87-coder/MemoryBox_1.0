@@ -65,7 +65,7 @@ const FREQUENCY_LABELS = {
   monthly: 'Monthly Chronicle'
 };
 
-export function JournalPage({ userId = 'demo-user', userName = 'You', familyId, familyMembers = [], onBack }: JournalPageProps) {
+export function JournalPage({ userId, userName = 'You', familyId, familyMembers = [], onBack }: JournalPageProps) {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [sharedEntries, setSharedEntries] = useState<JournalEntry[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);

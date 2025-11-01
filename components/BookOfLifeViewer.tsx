@@ -122,17 +122,42 @@ export const BookOfLifeViewer: React.FC<BookOfLifeViewerProps> = ({
     e.stopPropagation();
     hapticFeedback.tap();
     
-    // Store the memory to edit in localStorage (temporary)
-    localStorage.setItem('editingJourneyMemory', JSON.stringify(memory));
+    console.log('✏️ BOOK OF LIFE EDIT: Opening editor for memory:', {
+      id: memory.id,
+      title: memory.title,
+      journeyType: journeyType,
+      hasFiles: memory.files?.length || 0,
+      childId: (memory as any).child_id
+    });
     
-    // Navigate to the appropriate journey page based on journey type
-    if (journeyType === 'couple') {
-      onNavigate('couple-journey');
-      toast.success('Opening editor for your couple memory...');
-    } else if (journeyType === 'pregnancy') {
-      onNavigate('pregnancy-journey');
-      toast.success('Opening editor for your pregnancy memory...');
-    }
+    // 🚀 ENHANCED FIX: Direct navigation to upload page with complete context
+    // This ensures multimedia files are properly pre-populated in edit mode
+    const editContext = {
+      editMemory: memory,
+      milestoneContext: {
+        journeyType: journeyType,
+        milestoneId: (memory as any).milestone_id || (memory as any).milestoneId || 'memory-edit',
+        milestoneTitle: memory.title,
+        editingMemory: memory, // Full memory object with all multimedia files
+        childId: (memory as any).child_id, // For pregnancy journeys
+        isEditMode: true // Flag to indicate edit mode
+      }
+    };
+    
+    // Dispatch custom event for MemoryUploadPage to handle
+    // This works better than localStorage for complex objects with files
+    window.dispatchEvent(new CustomEvent('editMemory', { 
+      detail: editContext 
+    }));
+    
+    // Navigate to upload page
+    onNavigate('upload-memory');
+    
+    // Show appropriate toast
+    const memoryType = journeyType === 'couple' ? 'couple memory' : 'pregnancy memory';
+    toast.success(`✏️ Opening editor for your ${memoryType}...`, {
+      description: 'All fields and media files will be pre-loaded'
+    });
   };
 
   const handleDeleteMemory = (memory: Memory, e: React.MouseEvent) => {
